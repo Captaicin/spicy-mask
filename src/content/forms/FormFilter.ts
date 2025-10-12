@@ -1,4 +1,4 @@
-export type FormElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+export type FormElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLElement
 
 export interface FilterMetadata {
   id: string

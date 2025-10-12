@@ -46,6 +46,7 @@ export class FormOverlayController {
 
   setFilter(filter: FormFilter): void {
     this.filter = filter
+    this.hasLoggedInitialScan = false
     this.refresh()
   }
 

@@ -29,6 +29,10 @@ export class TextFormFilter extends FormFilter {
       return TEXT_INPUT_TYPES.has(type)
     }
 
+    if (element instanceof HTMLElement && element.isContentEditable) {
+      return true
+    }
+
     return false
   }
 }

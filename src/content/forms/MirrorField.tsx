@@ -2,17 +2,45 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { log } from '../../shared/logger'
 import type { FormElement } from './FormFilter'
 
+const isInputElement = (element: FormElement): element is HTMLInputElement =>
+  element instanceof HTMLInputElement
+
+const isTextareaElement = (element: FormElement): element is HTMLTextAreaElement =>
+  element instanceof HTMLTextAreaElement
+
+const isSelectElement = (element: FormElement): element is HTMLSelectElement =>
+  element instanceof HTMLSelectElement
+
+const isContentEditableElement = (element: FormElement): element is HTMLElement =>
+  element instanceof HTMLElement && element.isContentEditable
+
 const getElementValue = (element: FormElement): string => {
-  if (element instanceof HTMLSelectElement) {
+  if (isSelectElement(element)) {
     return element.value
   }
-  return element.value ?? ''
+
+  if (isInputElement(element) || isTextareaElement(element)) {
+    return element.value ?? ''
+  }
+
+  if (isContentEditableElement(element)) {
+    return element.textContent ?? ''
+  }
+
+  return ''
 }
 
 const setElementValue = (element: FormElement, value: string) => {
-  if (element.value !== value) {
-    element.value = value
+  if (isSelectElement(element) || isInputElement(element) || isTextareaElement(element)) {
+    if (element.value !== value) {
+      element.value = value
+    }
+  } else if (isContentEditableElement(element)) {
+    if (element.textContent !== value) {
+      element.textContent = value
+    }
   }
+
   element.dispatchEvent(new Event('input', { bubbles: true }))
   element.dispatchEvent(new Event('change', { bubbles: true }))
 }
@@ -23,16 +51,20 @@ const deriveLabel = (element: FormElement, fallback: string): string => {
     return explicit
   }
 
-  if (element instanceof HTMLInputElement && element.type) {
+  if (isInputElement(element) && element.type) {
     return `${element.type} input`
   }
 
-  if (element instanceof HTMLTextAreaElement) {
+  if (isTextareaElement(element)) {
     return 'Textarea'
   }
 
-  if (element instanceof HTMLSelectElement) {
+  if (isSelectElement(element)) {
     return 'Select'
+  }
+
+  if (isContentEditableElement(element)) {
+    return 'Contenteditable region'
   }
 
   return fallback
@@ -49,15 +81,12 @@ const listSelectOptions = (element: HTMLSelectElement) =>
 
 const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) => {
   const [value, setValue] = useState(() => getElementValue(target))
-  const [options, setOptions] = useState(() => (target instanceof HTMLSelectElement ? listSelectOptions(target) : []))
+  const [options, setOptions] = useState(() => (isSelectElement(target) ? listSelectOptions(target) : []))
 
   useEffect(() => {
     const handleInput = () => {
       const nextValue = getElementValue(target)
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement
-      ) {
+      if (isInputElement(target) || isTextareaElement(target) || isContentEditableElement(target)) {
         log('MirrorField input', {
           filterId,
           index,
@@ -74,10 +103,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       target.removeEventListener('input', handleInput)
       target.removeEventListener('change', handleInput)
     }
-  }, [target])
+  }, [target, filterId, index])
 
   useEffect(() => {
-    if (!(target instanceof HTMLSelectElement)) {
+    if (!isSelectElement(target)) {
       return
     }
 
@@ -103,18 +132,19 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }
 
   const mirrorControl = () => {
-    if (target instanceof HTMLTextAreaElement) {
+    if (isTextareaElement(target) || isContentEditableElement(target)) {
+      const baseRows = isTextareaElement(target) ? target.rows || 3 : 3
       return (
         <textarea
           value={value}
           onChange={handleChange}
-          rows={Math.max(3, Math.min(6, target.rows || 3))}
+          rows={Math.max(3, Math.min(6, baseRows))}
           style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', padding: '8px' }}
         />
       )
     }
 
-    if (target instanceof HTMLSelectElement) {
+    if (isSelectElement(target)) {
       return (
         <select value={value} onChange={handleChange} style={{ width: '100%', padding: '8px' }}>
           {options.map((option) => (
@@ -126,7 +156,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       )
     }
 
-    const inputType = target instanceof HTMLInputElement ? target.type || 'text' : 'text'
+    const inputType = isInputElement(target) ? target.type || 'text' : 'text'
 
     return (
       <input
