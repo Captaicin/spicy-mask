@@ -2,7 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { log, warn } from '../../shared/logger'
 import type { FormElement } from './FormFilter'
 import { detectionEngine } from '../detection'
-import { type DetectionContext, type DetectionMatch } from '../detection/detectors/BaseDetector'
+import {
+  type DetectionContext,
+  type DetectionMatch,
+  type DetectionTrigger
+} from '../detection/detectors/BaseDetector'
 import { TargetHighlighter } from './TargetHighlighter'
 import { maskValueWithMatches } from '../masking'
 
@@ -98,16 +102,46 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     [target, filterId, index]
   )
 
+  const isMountedRef = useRef(true)
+  const detectionSequenceRef = useRef(0)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const runDetection = useCallback(
-    (nextValue: string) => {
-      const results = detectionEngine.run({
-        value: nextValue,
-        context: detectionContext
-      })
-      setMatches(results)
-      highlighterRef.current?.update(nextValue, results)
+    async (nextValue: string, options: { trigger?: DetectionTrigger } = {}) => {
+      const trigger = options.trigger ?? 'auto'
+      const sequence = ++detectionSequenceRef.current
+
+      try {
+        const results = await detectionEngine.run({
+          value: nextValue,
+          context: detectionContext,
+          trigger
+        })
+
+        if (!isMountedRef.current) {
+          return
+        }
+
+        if (detectionSequenceRef.current !== sequence) {
+          return
+        }
+
+        setMatches(results)
+        highlighterRef.current?.update(nextValue, results)
+      } catch (err) {
+        warn('Detection run failed', {
+          filterId,
+          index,
+          message: err instanceof Error ? err.message : String(err)
+        })
+      }
     },
-    [detectionContext]
+    [detectionContext, filterId, index]
   )
 
   const applyMask = useCallback(
@@ -140,7 +174,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       setElementValue(target, masked)
       setMatches([])
       setCloseSignal((token) => token + 1)
-      runDetection(masked)
+      void runDetection(masked, { trigger: 'auto' })
     },
     [filterId, index, runDetection, target, value]
   )
@@ -160,7 +194,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   )
 
   const handleRequestScan = useCallback(() => {
-    runDetection(value)
+    void runDetection(value, { trigger: 'manual' })
   }, [runDetection, value])
 
   useEffect(() => {
@@ -182,7 +216,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [target, detectionContext, handleMaskSegment, handleMaskAll, handleRequestScan])
 
   useEffect(() => {
-    runDetection(value)
+    void runDetection(value, { trigger: 'auto' })
   }, [runDetection, value])
 
   useEffect(() => {

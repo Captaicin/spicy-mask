@@ -1,4 +1,5 @@
 import type { FormElement } from '../../forms/FormFilter'
+import type { GeminiEntityType } from '../../../shared/types'
 
 export interface DetectionMetadata {
   id: string
@@ -12,9 +13,12 @@ export interface DetectionContext {
   fieldIndex: number
 }
 
+export type DetectionTrigger = 'auto' | 'manual'
+
 export interface DetectionInput {
   value: string
   context: DetectionContext
+  trigger?: DetectionTrigger
 }
 
 export interface DetectionMatch {
@@ -22,6 +26,7 @@ export interface DetectionMatch {
   match: string
   startIndex: number
   endIndex: number
+  entityType?: GeminiEntityType
 }
 
 export abstract class BaseDetector {
@@ -35,5 +40,5 @@ export abstract class BaseDetector {
     this.description = meta.description
   }
 
-  abstract detect(input: DetectionInput): DetectionMatch[]
+  abstract detect(input: DetectionInput): DetectionMatch[] | Promise<DetectionMatch[]>
 }

@@ -676,6 +676,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
               <div key={`${match.detectorId}-${match.startIndex}-${idx}`} style={{ marginBottom: '4px' }}>
                 <div style={{ fontWeight: 600 }}>{match.match}</div>
                 <div style={{ opacity: 0.7 }}>Detector: {match.detectorId}</div>
+                {match.entityType ? (
+                  <div style={{ opacity: 0.7 }}>Type: {match.entityType}</div>
+                ) : null}
               </div>
             ))}
           </div>

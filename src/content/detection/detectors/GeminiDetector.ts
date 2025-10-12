@@ -1,7 +1,6 @@
 import { log } from '../../../shared/logger'
 import { BaseDetector, type DetectionInput, type DetectionMatch } from './BaseDetector'
-
-const PLACEHOLDER_NEEDLE = 'asdfas'
+import { requestGeminiScan } from './geminiClient'
 
 export class GeminiDetector extends BaseDetector {
   constructor() {
@@ -9,40 +8,37 @@ export class GeminiDetector extends BaseDetector {
       id: 'gemini-detector',
       label: 'Gemini detector',
       description:
-        'Stub detector that will later call an external Gemini service. Currently mirrors the mock detector behaviour.'
+        'Calls the background Gemini scan stub to detect structured secrets such as phone numbers or emails.'
     })
   }
 
-  detect(input: DetectionInput): DetectionMatch[] {
+  async detect(input: DetectionInput): Promise<DetectionMatch[]> {
+    if (input.trigger !== 'manual') {
+      return []
+    }
+
     const value = input.value ?? ''
     if (!value) {
       return []
     }
 
-    const matches: DetectionMatch[] = []
-    let index = value.indexOf(PLACEHOLDER_NEEDLE)
-
-    while (index !== -1) {
-      const endIndex = index + PLACEHOLDER_NEEDLE.length
-      const match: DetectionMatch = {
-        detectorId: this.id,
-        match: PLACEHOLDER_NEEDLE,
-        startIndex: index,
-        endIndex
-      }
-
-      matches.push(match)
-
-      log('GeminiDetector match (stub)', {
-        filterId: input.context.filterId,
-        fieldIndex: input.context.fieldIndex,
-        startIndex: index,
-        endIndex
-      })
-
-      index = value.indexOf(PLACEHOLDER_NEEDLE, index + 1)
+    const matches = await requestGeminiScan(value)
+    if (matches.length === 0) {
+      return []
     }
 
-    return matches
+    log('GeminiDetector remote matches', {
+      filterId: input.context.filterId,
+      fieldIndex: input.context.fieldIndex,
+      count: matches.length
+    })
+
+    return matches.map((match) => ({
+      detectorId: this.id,
+      match: match.value,
+      startIndex: match.startIndex,
+      endIndex: match.endIndex,
+      entityType: match.entityType
+    }))
   }
 }
