@@ -2,7 +2,6 @@ import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { createOverlayShadow, type ShadowOverlay } from '../../shared/dom'
 import { MIRROR_OVERLAY_PREFIX } from '../../shared/constants'
-import { log } from '../../shared/logger'
 import type { FormElement } from './FormFilter'
 import MirrorField from './MirrorField'
 
@@ -18,20 +17,10 @@ export class FormMirrorManager {
   private counter = 0
 
   sync(elements: FormElement[], filterId: string): void {
-    log('FormMirrorManager: synchronising mirrors', {
-      filterId,
-      requested: elements.length
-    })
-
     const nextSet = new Set(elements)
 
     for (const [element, instance] of this.mirrors) {
       if (!nextSet.has(element)) {
-        log('FormMirrorManager: removing mirror', {
-          overlayId: instance.overlay.host.id,
-          tag: element.tagName,
-          name: element.getAttribute('name') ?? null
-        })
         this.teardownInstance(instance)
         this.mirrors.delete(element)
       }
@@ -52,7 +41,6 @@ export class FormMirrorManager {
       return
     }
 
-    log('FormMirrorManager: disposing all mirrors', { count: this.mirrors.size })
     for (const instance of this.mirrors.values()) {
       this.teardownInstance(instance)
     }
@@ -61,27 +49,12 @@ export class FormMirrorManager {
 
   private createInstance(element: FormElement): MirrorInstance {
     const overlayId = `${MIRROR_OVERLAY_PREFIX}-${++this.counter}`
-    log('FormMirrorManager: creating mirror instance', {
-      overlayId,
-      tag: element.tagName,
-      name: element.getAttribute('name') ?? null
-    })
     const overlay = createOverlayShadow(overlayId)
     const container = document.createElement('div')
     overlay.shadow.appendChild(container)
     const root = createRoot(container)
 
     const render = (index: number, filterId: string) => {
-      log('FormMirrorManager: rendering mirror field', {
-        overlayId,
-        index,
-        filterId,
-        value: element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
-          ? element.value
-          : element instanceof HTMLSelectElement
-            ? element.value
-            : null
-      })
       root.render(
         React.createElement(
           React.StrictMode,
@@ -95,11 +68,6 @@ export class FormMirrorManager {
   }
 
   private teardownInstance(instance: MirrorInstance): void {
-    log('FormMirrorManager: tearing down mirror instance', {
-      overlayId: instance.overlay.host.id,
-      tag: instance.element.tagName,
-      name: instance.element.getAttribute('name') ?? null
-    })
     instance.root.unmount()
     instance.overlay.destroy()
   }

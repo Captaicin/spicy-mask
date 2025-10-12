@@ -1,4 +1,4 @@
-import { log, warn } from '../../shared/logger'
+import { log } from '../../shared/logger'
 import { FormFilter, FormElement } from './FormFilter'
 import { FormMirrorManager } from './FormMirrorManager'
 import { FormScanner } from './FormScanner'
@@ -17,6 +17,7 @@ export class FormOverlayController {
 
   private filter: FormFilter | null = null
   private enabled = true
+  private hasLoggedInitialScan = false
 
   private allElements: FormElement[] = []
   private filteredElements: FormElement[] = []
@@ -40,11 +41,11 @@ export class FormOverlayController {
     this.filteredElements = []
     this.refreshQueued = false
     this.filter = null
+    this.hasLoggedInitialScan = false
   }
 
   setFilter(filter: FormFilter): void {
     this.filter = filter
-    log('FormOverlayController: filter injected', { filterId: filter.id })
     this.refresh()
   }
 
@@ -54,7 +55,6 @@ export class FormOverlayController {
     }
 
     this.enabled = next
-    log('FormOverlayController: setEnabled', { enabled: this.enabled })
 
     if (!this.enabled) {
       this.mirrorManager.dispose()
@@ -67,7 +67,6 @@ export class FormOverlayController {
     const filter = this.filter
 
     if (!filter) {
-      warn('FormOverlayController: refresh skipped because no filter is configured')
       this.mirrorManager.dispose()
       this.allElements = []
       this.filteredElements = []
@@ -76,12 +75,20 @@ export class FormOverlayController {
 
     try {
       this.allElements = this.scanner.scan()
-      log('FormOverlayController: scanned form elements', {
-        total: this.allElements.length
-      })
-    } catch (err) {
-      warn('FormOverlayController: failed to scan forms', err)
+    } catch (_err) {
       this.allElements = []
+    }
+
+    if (!this.hasLoggedInitialScan) {
+      this.hasLoggedInitialScan = true
+      log('Spicy Mask discovered form inputs',
+        this.allElements.map((element) => ({
+          tag: element.tagName.toLowerCase(),
+          type: element instanceof HTMLInputElement ? element.type : undefined,
+          name: element.getAttribute('name') ?? undefined,
+          id: element.id || undefined
+        }))
+      )
     }
 
     this.filteredElements = filter.filter(this.allElements)
@@ -89,20 +96,8 @@ export class FormOverlayController {
     if (this.enabled) {
       this.mirrorManager.sync(this.filteredElements, filter.id)
     } else {
-      if (this.filteredElements.length > 0) {
-        log('FormOverlayController: mirroring disabled, disposed current mirrors', {
-          filtered: this.filteredElements.length
-        })
-      }
       this.mirrorManager.dispose()
     }
-
-    log('FormOverlayController: refresh complete', {
-      enabled: this.enabled,
-      filterId: filter.id,
-      total: this.allElements.length,
-      filtered: this.filteredElements.length
-    })
   }
 
   private observeDom(): void {

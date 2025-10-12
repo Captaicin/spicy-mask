@@ -1,4 +1,4 @@
-const prefix = '[EXT]'
+const prefix = '[Spicy Mask]'
 
 type LogArgs = [unknown, ...unknown[]]
 

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { sendMessage } from '../shared/messaging'
-import { log, warn } from '../shared/logger'
 
 const Popup: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'error'>('idle')
@@ -8,10 +7,8 @@ const Popup: React.FC = () => {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const ping = await sendMessage({ type: 'PING' })
-        log('Background ready', ping)
-      } catch (err) {
-        warn('Popup failed to reach background service worker', err)
+        await sendMessage({ type: 'PING' })
+      } catch (_err) {
         setStatus('error')
       }
     }

@@ -52,31 +52,18 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   const [options, setOptions] = useState(() => (target instanceof HTMLSelectElement ? listSelectOptions(target) : []))
 
   useEffect(() => {
-    log('MirrorField mounted', {
-      filterId,
-      index,
-      tag: target.tagName,
-      name: target.getAttribute('name') ?? null,
-      initialValue: getElementValue(target)
-    })
-    return () => {
-      log('MirrorField unmounted', {
-        filterId,
-        index,
-        tag: target.tagName,
-        name: target.getAttribute('name') ?? null
-      })
-    }
-  }, [filterId, index, target])
-
-  useEffect(() => {
     const handleInput = () => {
       const nextValue = getElementValue(target)
-      log('MirrorField observed target input', {
-        filterId,
-        index,
-        value: nextValue
-      })
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement
+      ) {
+        log('MirrorField input', {
+          filterId,
+          index,
+          value: nextValue
+        })
+      }
       setValue(nextValue)
     }
 
@@ -97,11 +84,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     const observer = new MutationObserver(() => {
       setOptions(listSelectOptions(target))
       setValue(target.value)
-      log('MirrorField detected options mutation', {
-        filterId,
-        index,
-        options: listSelectOptions(target)
-      })
     })
 
     observer.observe(target, { childList: true })
@@ -116,11 +98,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     event
   ) => {
     const newValue = event.target.value
-    log('MirrorField propagating change to target', {
-      filterId,
-      index,
-      value: newValue
-    })
     setValue(newValue)
     setElementValue(target, newValue)
   }
