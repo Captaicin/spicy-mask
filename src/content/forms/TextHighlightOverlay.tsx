@@ -10,6 +10,7 @@ import type { DetectionContext, DetectionMatch } from '../detection/detectors/Ba
 
 const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
 const POPOVER_WIDTH = 220
+const HOVER_DELAY_MS = 500
 
 interface HighlightOverlayProps {
   value: string
@@ -200,18 +201,28 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   onFocusMatch
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const hoverTimerRef = useRef<number | null>(null)
   const [hovered, setHovered] = useState<ActiveSegment | null>(null)
   const [pinned, setPinned] = useState<ActiveSegment | null>(null)
+  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
 
   const segments = useMemo(() => buildSegments(value, matches), [value, matches])
 
   const active = pinned ?? hovered
 
-  const updatePopoverPosition = useCallback(
+  const clearHoverTimer = useCallback(() => {
+    if (hoverTimerRef.current !== null) {
+      window.clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+  }, [])
+
+  const updateAnchorPosition = useCallback(
     (segmentKey: string | null) => {
       if (!segmentKey || !containerRef.current) {
-        setPosition(null)
+        setAnchor(null)
         return
       }
       const containerRect = containerRef.current.getBoundingClientRect()
@@ -219,26 +230,54 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         `[data-highlight-key="${segmentKey}"]`
       )
       if (!segmentEl) {
-        setPosition(null)
+        setAnchor(null)
         return
       }
 
       const rect = segmentEl.getBoundingClientRect()
       const relativeLeft = rect.left - containerRect.left
-      const relativeTop = rect.bottom - containerRect.top
-      const maxLeft = Math.max(0, containerRect.width - POPOVER_WIDTH)
+      const relativeTop = rect.top - containerRect.top
 
-      setPosition({
-        left: Math.min(Math.max(0, relativeLeft), maxLeft),
-        top: relativeTop + 4
+      setAnchor({
+        left: relativeLeft,
+        top: relativeTop,
+        width: rect.width
       })
     },
     []
   )
 
   useLayoutEffect(() => {
-    updatePopoverPosition(active?.key ?? null)
-  }, [active?.key, updatePopoverPosition, scrollTop, scrollLeft, value, matches])
+    updateAnchorPosition(active?.key ?? null)
+  }, [active?.key, updateAnchorPosition, scrollTop, scrollLeft, value, matches])
+
+  useLayoutEffect(() => {
+    if (!anchor || !containerRef.current) {
+      setPosition(null)
+      return
+    }
+
+    const frame = requestAnimationFrame(() => {
+      if (!anchor || !containerRef.current) {
+        return
+      }
+
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const popoverHeight = popoverRef.current?.offsetHeight ?? 0
+      const containerWidth = containerRect.width
+
+      const rawLeft = anchor.left + anchor.width / 2 - POPOVER_WIDTH / 2
+      const clampedLeft = Math.min(Math.max(0, rawLeft), Math.max(0, containerWidth - POPOVER_WIDTH))
+      const rawTop = anchor.top - popoverHeight - 8
+
+      setPosition({
+        left: clampedLeft,
+        top: rawTop
+      })
+    })
+
+    return () => cancelAnimationFrame(frame)
+  }, [anchor, active, matches, value])
 
   useEffect(() => {
     if (!pinned) {
@@ -250,22 +289,35 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         return
       }
       const root = containerRef.current
-      if (root.contains(event.target as Node)) {
+      const targetNode = event.target
+      if (!(targetNode instanceof Node)) {
         return
       }
+      if (root.contains(targetNode)) {
+        return
+      }
+      clearHoverTimer()
       setPinned(null)
       setHovered(null)
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [pinned])
+  }, [pinned, clearHoverTimer])
+
+  useEffect(() => {
+    return () => clearHoverTimer()
+  }, [clearHoverTimer])
 
   const handleMouseEnter = useCallback(
     (segment: HighlightSegment) => {
-      setHovered({ key: segment.key, matches: segment.matches, text: segment.text })
+      clearHoverTimer()
+      hoverTimerRef.current = window.setTimeout(() => {
+        hoverTimerRef.current = null
+        setHovered({ key: segment.key, matches: segment.matches, text: segment.text })
+      }, HOVER_DELAY_MS)
     },
-    []
+    [clearHoverTimer]
   )
 
   const handleMouseLeave = useCallback(
@@ -274,12 +326,13 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         return
       }
       const next = event.relatedTarget as Node | null
-      if (next && containerRef.current?.contains(next)) {
+      if (next && next instanceof Node && containerRef.current?.contains(next)) {
         return
       }
+      clearHoverTimer()
       setHovered(null)
     },
-    [pinned]
+    [pinned, clearHoverTimer]
   )
 
   const handleClickHighlight = useCallback(
@@ -297,11 +350,12 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         matches: segment.matches,
         text: segment.text
       }
+      clearHoverTimer()
       setPinned(nextPinned)
       setHovered(null)
-      updatePopoverPosition(segment.key)
+      updateAnchorPosition(segment.key)
     },
-    [context, onFocusMatch, target, updatePopoverPosition]
+    [context, onFocusMatch, target, updateAnchorPosition, clearHoverTimer]
   )
 
   const handleMaskIt = useCallback(() => {
@@ -319,9 +373,17 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   }, [matches, context, onMaskAll])
 
   const closePopover = useCallback(() => {
+    try {
+      target.focus({ preventScroll: true })
+    } catch (err) {
+      target.focus()
+    }
+    clearHoverTimer()
     setPinned(null)
     setHovered(null)
-  }, [])
+    setAnchor(null)
+    setPosition(null)
+  }, [target, clearHoverTimer])
 
   if (segments.length === 0) {
     return null
@@ -334,7 +396,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none',
-        overflow: 'hidden',
+        overflow: 'visible',
         borderRadius: 'inherit'
       }}
     >
@@ -392,6 +454,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
       {active && position ? (
         <div
+          ref={popoverRef}
           style={{
             position: 'absolute',
             left: `${position.left}px`,
@@ -411,9 +474,10 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
               return
             }
             const next = event.relatedTarget as Node | null
-            if (next && containerRef.current?.contains(next)) {
+            if (next && next instanceof Node && containerRef.current?.contains(next)) {
               return
             }
+            clearHoverTimer()
             setHovered(null)
           }}
         >

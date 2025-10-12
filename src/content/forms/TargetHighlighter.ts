@@ -80,12 +80,10 @@ export class TargetHighlighter {
 
     if (!matches || matches.length === 0) {
       this.container.style.display = 'none'
-      this.container.style.pointerEvents = 'none'
       return
     }
 
     this.container.style.display = 'block'
-    this.container.style.pointerEvents = 'auto'
     this.syncBaseStyles()
     this.updateLayout()
     this.scrollTop = this.target.scrollTop
