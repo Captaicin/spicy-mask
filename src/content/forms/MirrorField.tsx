@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { log } from '../../shared/logger'
 import type { FormElement } from './FormFilter'
+import { detectionEngine, type DetectionContext } from '../detection'
 
 const isInputElement = (element: FormElement): element is HTMLInputElement =>
   element instanceof HTMLInputElement
@@ -82,6 +83,24 @@ const listSelectOptions = (element: HTMLSelectElement) =>
 const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) => {
   const [value, setValue] = useState(() => getElementValue(target))
   const [options, setOptions] = useState(() => (isSelectElement(target) ? listSelectOptions(target) : []))
+  const detectionContext = useMemo<DetectionContext>(
+    () => ({
+      element: target,
+      filterId,
+      fieldIndex: index
+    }),
+    [target, filterId, index]
+  )
+
+  const runDetection = useCallback(
+    (nextValue: string) => {
+      detectionEngine.run({
+        value: nextValue,
+        context: detectionContext
+      })
+    },
+    [detectionContext]
+  )
 
   useEffect(() => {
     const handleInput = () => {
@@ -94,6 +113,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         })
       }
       setValue(nextValue)
+      runDetection(nextValue)
     }
 
     target.addEventListener('input', handleInput)
@@ -103,7 +123,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       target.removeEventListener('input', handleInput)
       target.removeEventListener('change', handleInput)
     }
-  }, [target, filterId, index])
+  }, [target, filterId, index, runDetection])
 
   useEffect(() => {
     if (!isSelectElement(target)) {
@@ -129,6 +149,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     const newValue = event.target.value
     setValue(newValue)
     setElementValue(target, newValue)
+    runDetection(newValue)
   }
 
   const mirrorControl = () => {
