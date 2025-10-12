@@ -12,6 +12,7 @@ const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
 const POPOVER_WIDTH = 220
 const HOVER_DELAY_MS = 500
 
+// FIXME: scanPending keep exists, instead of showing scanSummary
 interface HighlightOverlayProps {
   value: string
   matches: DetectionMatch[]
