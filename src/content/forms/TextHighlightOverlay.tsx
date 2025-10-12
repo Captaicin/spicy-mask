@@ -25,6 +25,7 @@ interface HighlightOverlayProps {
   onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+  closeSignal: number
 }
 
 interface HighlightSegment {
@@ -198,7 +199,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   context,
   onMaskSegment,
   onMaskAll,
-  onFocusMatch
+  onFocusMatch,
+  closeSignal
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -384,6 +386,14 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     setAnchor(null)
     setPosition(null)
   }, [target, clearHoverTimer])
+
+  const closeSignalRef = useRef(closeSignal)
+  useEffect(() => {
+    if (closeSignal !== closeSignalRef.current) {
+      closeSignalRef.current = closeSignal
+      closePopover()
+    }
+  }, [closeSignal, closePopover])
 
   if (segments.length === 0) {
     return null

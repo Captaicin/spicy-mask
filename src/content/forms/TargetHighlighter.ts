@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import TextHighlightOverlay from './TextHighlightOverlay'
-import type { DetectionContext, DetectionMatch } from '../detection'
+import type { DetectionContext, DetectionMatch } from '../detection/detectors/BaseDetector'
 
 const MAX_Z_INDEX = '2147483646'
 
@@ -41,6 +41,7 @@ export class TargetHighlighter {
   private currentMatches: DetectionMatch[] = []
   private whiteSpace: React.CSSProperties['whiteSpace'] = 'pre-wrap'
   private wordBreak: React.CSSProperties['wordBreak'] = 'break-word'
+  private closeSignal = 0
 
   constructor(target: HTMLElement, context: DetectionContext, callbacks: TargetHighlighterCallbacks = {}) {
     this.target = target
@@ -89,6 +90,17 @@ export class TargetHighlighter {
     this.scrollTop = this.target.scrollTop
     this.scrollLeft = this.target.scrollLeft
 
+    this.render()
+  }
+
+  setCloseSignal(signal: number): void {
+    if (this.destroyed) {
+      return
+    }
+    if (this.closeSignal === signal) {
+      return
+    }
+    this.closeSignal = signal
     this.render()
   }
 
@@ -203,7 +215,8 @@ export class TargetHighlighter {
         context: this.context,
         onMaskSegment: this.callbacks.onMaskSegment,
         onMaskAll: this.callbacks.onMaskAll,
-        onFocusMatch: this.callbacks.onFocusMatch
+        onFocusMatch: this.callbacks.onFocusMatch,
+        closeSignal: this.closeSignal
       })
     )
   }
