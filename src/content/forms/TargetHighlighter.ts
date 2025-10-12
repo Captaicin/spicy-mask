@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import TextHighlightOverlay from './TextHighlightOverlay'
-import type { DetectionMatch } from '../detection'
+import type { DetectionContext, DetectionMatch } from '../detection'
 
 const MAX_Z_INDEX = '2147483646'
 
@@ -18,8 +18,16 @@ const isScrollableElement = (element: HTMLElement): element is HTMLElement & { s
   return /auto|scroll|overlay/i.test(style.overflow + style.overflowX + style.overflowY)
 }
 
+type TargetHighlighterCallbacks = {
+  onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
+  onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
+  onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+}
+
 export class TargetHighlighter {
   private readonly target: HTMLElement
+  private readonly context: DetectionContext
+  private readonly callbacks: TargetHighlighterCallbacks
   private readonly container: HTMLDivElement
   private readonly inner: HTMLDivElement
   private readonly root: Root
@@ -34,8 +42,10 @@ export class TargetHighlighter {
   private whiteSpace: React.CSSProperties['whiteSpace'] = 'pre-wrap'
   private wordBreak: React.CSSProperties['wordBreak'] = 'break-word'
 
-  constructor(target: HTMLElement) {
+  constructor(target: HTMLElement, context: DetectionContext, callbacks: TargetHighlighterCallbacks = {}) {
     this.target = target
+    this.context = context
+    this.callbacks = callbacks
 
     this.container = document.createElement('div')
     this.container.style.position = 'absolute'
@@ -70,10 +80,12 @@ export class TargetHighlighter {
 
     if (!matches || matches.length === 0) {
       this.container.style.display = 'none'
+      this.container.style.pointerEvents = 'none'
       return
     }
 
     this.container.style.display = 'block'
+    this.container.style.pointerEvents = 'auto'
     this.syncBaseStyles()
     this.updateLayout()
     this.scrollTop = this.target.scrollTop
@@ -188,7 +200,12 @@ export class TargetHighlighter {
         scrollTop: this.scrollTop,
         scrollLeft: this.scrollLeft,
         whiteSpace: this.whiteSpace,
-        wordBreak: this.wordBreak
+        wordBreak: this.wordBreak,
+        target: this.target,
+        context: this.context,
+        onMaskSegment: this.callbacks.onMaskSegment,
+        onMaskAll: this.callbacks.onMaskAll,
+        onFocusMatch: this.callbacks.onFocusMatch
       })
     )
   }

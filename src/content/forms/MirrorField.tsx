@@ -96,6 +96,33 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     [target, filterId, index]
   )
 
+  const handleMaskSegment = useCallback(
+    ({ matches: selectedMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
+      log('Mask segment requested', {
+        filterId,
+        index,
+        matches: selectedMatches.map((match) => ({
+          detectorId: match.detectorId,
+          text: match.match,
+          start: match.startIndex,
+          end: match.endIndex
+        }))
+      })
+    },
+    [filterId, index]
+  )
+
+  const handleMaskAll = useCallback(
+    ({ matches: allMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
+      log('Mask all requested', {
+        filterId,
+        index,
+        total: allMatches.length
+      })
+    },
+    [filterId, index]
+  )
+
   const runDetection = useCallback(
     (nextValue: string) => {
       const results = detectionEngine.run({
@@ -107,6 +134,24 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     },
     [detectionContext]
   )
+
+  useEffect(() => {
+    if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
+      return
+    }
+
+    const highlighter = new TargetHighlighter(target, detectionContext, {
+      onMaskSegment: handleMaskSegment,
+      onMaskAll: handleMaskAll
+    })
+    highlighterRef.current = highlighter
+    highlighter.update(value, matches)
+
+    return () => {
+      highlighter.destroy()
+      highlighterRef.current = null
+    }
+  }, [target, detectionContext, handleMaskSegment, handleMaskAll])
 
   useEffect(() => {
     runDetection(value)
@@ -135,24 +180,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [target, filterId, index])
 
   useEffect(() => {
-    if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
-      return
-    }
-
-    const highlighter = new TargetHighlighter(target)
-    highlighterRef.current = highlighter
-
-    return () => {
-      highlighter.destroy()
-      highlighterRef.current = null
-    }
-  }, [target])
-
-  useEffect(() => {
-    highlighterRef.current?.update(value, matches)
-  }, [value, matches])
-
-  useEffect(() => {
     if (!isSelectElement(target)) {
       return
     }
@@ -166,6 +193,14 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
     return () => observer.disconnect()
   }, [target])
+
+  useEffect(() => {
+    if (!highlighterRef.current) {
+      return
+    }
+
+    highlighterRef.current.update(value, matches)
+  }, [value, matches])
 
   const label = useMemo(() => deriveLabel(target, `Field #${index + 1}`), [target, index])
   const location = useMemo(() => target.getAttribute('name') || target.getAttribute('id') || 'Unnamed field', [target])
@@ -213,11 +248,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       )
     }
 
-    // const inputType = isInputElement(target) ? target.type || 'text' : 'text'
-
     return (
       <input
-        // type={inputType}
         value={value}
         onChange={handleChange}
         style={{
