@@ -1,72 +1,54 @@
 import React, { useEffect, useState } from 'react'
 import { sendMessage } from '../../shared/messaging'
 import { DEFAULT_COLOR } from '../../shared/constants'
-import { log, warn } from '../../shared/logger'
-
-const applyHighlight = (color: string) => {
-  document.querySelectorAll('p, span, div').forEach((node) => {
-    const element = node as HTMLElement
-    element.style.outline = `2px dashed ${color}`
-    element.style.outlineOffset = '4px'
-  })
-}
-
-const clearHighlight = () => {
-  document.querySelectorAll('p, span, div').forEach((node) => {
-    const element = node as HTMLElement
-    element.style.outline = ''
-    element.style.outlineOffset = ''
-  })
-}
+import { warn } from '../../shared/logger'
+import { formOverlayController, type FormOverlayState } from '../forms/FormOverlayController'
 
 const Root: React.FC = () => {
-  const [color, setColor] = useState(DEFAULT_COLOR)
-  const [enabled, setEnabled] = useState(true)
-  const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle')
+  const [color, setColor] = useState(() => formOverlayController.getColor() || DEFAULT_COLOR)
+  const [status, setStatus] = useState<'loading' | 'idle' | 'saving' | 'error'>('loading')
+  const [overlayState, setOverlayState] = useState<FormOverlayState>(() => formOverlayController.getState())
+
+  useEffect(() => formOverlayController.subscribe(setOverlayState), [])
 
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const ping = await sendMessage({ type: 'PING' })
-        log('Background responded', ping)
         const response = await sendMessage({ type: 'GET_COLOR' })
         if (response.ok && typeof response.data === 'string') {
           setColor(response.data)
-          applyHighlight(response.data)
-          return
+          formOverlayController.setColor(response.data)
         }
+        setStatus('idle')
       } catch (err) {
         warn('Failed to initialize color from background', err)
+        setStatus('error')
       }
-      applyHighlight(DEFAULT_COLOR)
     }
 
     bootstrap()
   }, [])
 
   const handleToggle = () => {
-    setEnabled((prev) => {
-      const next = !prev
-      if (next) {
-        applyHighlight(color)
-      } else {
-        clearHighlight()
-      }
-      return next
-    })
+    formOverlayController.setEnabled(!overlayState.enabled)
+  }
+
+  const handleFilterChange: React.ChangeEventHandler<HTMLSelectElement> = (event) => {
+    formOverlayController.setFilterById(event.target.value)
+  }
+
+  const handleRefresh = () => {
+    formOverlayController.refresh()
   }
 
   const handleColorChange = async (value: string) => {
     setColor(value)
-    if (!enabled) {
-      return
-    }
+    formOverlayController.setColor(value)
 
     setStatus('saving')
     try {
       const response = await sendMessage({ type: 'SET_COLOR', payload: { color: value } })
       if (response.ok) {
-        applyHighlight(value)
         setStatus('idle')
       } else {
         setStatus('error')
@@ -77,56 +59,120 @@ const Root: React.FC = () => {
     }
   }
 
+  const { enabled, filterId, filters, total, filtered } = overlayState
+
   return (
     <div
       style={{
-        minWidth: 200,
-        padding: '12px 16px',
-        borderRadius: 12,
-        background: 'rgba(17, 24, 39, 0.9)',
+        minWidth: 240,
+        padding: '16px',
+        borderRadius: 16,
+        background: 'rgba(17, 24, 39, 0.95)',
         color: '#f8fafc',
         fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.4)',
-        backdropFilter: 'blur(8px)'
+        boxShadow: '0 16px 36px rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
       }}
     >
-      <h2 style={{ margin: '0 0 8px', fontSize: 16 }}>Spicy Mask</h2>
-      <p style={{ margin: '0 0 12px', fontSize: 12 }}>
-        Highlight text blocks on the page. Adjust the color or turn the overlay off.
-      </p>
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
-        <span>Highlight color</span>
-        <input
-          type="color"
-          value={color}
-          onChange={(event) => handleColorChange(event.target.value)}
-          style={{ width: '100%' }}
-        />
-      </label>
-      <button
-        onClick={handleToggle}
+      <header>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Spicy Mask</h2>
+        <p style={{ margin: '4px 0 0', fontSize: 12, color: '#cbd5f5' }}>
+          Mirror filtered form fields in a shadow DOM overlay.
+        </p>
+      </header>
+
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+          <span>Highlight color</span>
+          <input
+            type="color"
+            value={color}
+            onChange={(event) => handleColorChange(event.target.value)}
+            disabled={status === 'saving'}
+            style={{ width: '100%', height: 36, borderRadius: 8, border: 'none' }}
+          />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+          <span>Form filter</span>
+          <select
+            value={filterId}
+            onChange={handleFilterChange}
+            style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid rgba(203, 213, 225, 0.4)' }}
+          >
+            {filters.map((filter) => (
+              <option key={filter.id} value={filter.id}>
+                {filter.label}
+              </option>
+            ))}
+          </select>
+          <small style={{ fontSize: 11, color: '#cbd5f5' }}>
+            {filters.find((filter) => filter.id === filterId)?.description ?? ''}
+          </small>
+        </label>
+      </section>
+
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button
+          onClick={handleToggle}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            fontWeight: 600,
+            borderRadius: 10,
+            border: 'none',
+            cursor: 'pointer',
+            background: enabled ? '#22c55e' : '#ef4444',
+            color: '#0f172a'
+          }}
+        >
+          {enabled ? 'Disable overlays' : 'Enable overlays'}
+        </button>
+        <button
+          onClick={handleRefresh}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            fontWeight: 500,
+            borderRadius: 10,
+            border: '1px solid rgba(203, 213, 225, 0.4)',
+            background: 'rgba(15, 23, 42, 0.6)',
+            color: '#e2e8f0',
+            cursor: 'pointer'
+          }}
+        >
+          Rescan forms
+        </button>
+      </section>
+
+      <section
         style={{
-          marginTop: 12,
-          width: '100%',
-          padding: '8px 12px',
-          fontWeight: 600,
-          borderRadius: 8,
-          border: 'none',
-          cursor: 'pointer',
-          background: enabled ? '#22c55e' : '#ef4444',
-          color: '#0f172a'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 8,
+          background: 'rgba(15, 23, 42, 0.6)',
+          borderRadius: 12,
+          padding: '12px'
         }}
       >
-        {enabled ? 'Disable highlight' : 'Enable highlight'}
-      </button>
-      {status === 'saving' && (
-        <p style={{ marginTop: 8, fontSize: 11 }}>Saving…</p>
-      )}
-      {status === 'error' && (
-        <p style={{ marginTop: 8, fontSize: 11, color: '#fbbf24' }}>
-          Could not save color. Try again.
-        </p>
-      )}
+        <div>
+          <div style={{ fontSize: 11, color: '#cbd5f5' }}>Detected</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>{total}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: '#cbd5f5' }}>Mirroring</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>{enabled ? filtered : 0}</div>
+        </div>
+      </section>
+
+      <footer style={{ fontSize: 11, color: '#94a3b8' }}>
+        {status === 'loading' && 'Initializing…'}
+        {status === 'saving' && 'Saving color to storage…'}
+        {status === 'error' && 'Could not sync with background. Check extension permissions.'}
+        {status === 'idle' && `${filtered} fields match the ${filterId} filter.`}
+      </footer>
     </div>
   )
 }

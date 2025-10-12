@@ -2,7 +2,7 @@ import { onMessage } from '../shared/messaging'
 import { storage, STORAGE_KEYS } from '../shared/storage'
 import { DEFAULT_COLOR } from '../shared/constants'
 import { log, warn, error } from '../shared/logger'
-import type { MsgResponse } from '../shared/types'
+import type { Msg, MsgResponse } from '../shared/types'
 
 let currentColor = DEFAULT_COLOR
 
@@ -24,6 +24,19 @@ chrome.runtime.onInstalled.addListener(() => {
   log('Extension installed')
 })
 
+const dispatchToActiveTab = async (message: Msg): Promise<boolean> => {
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (activeTab?.id != null) {
+      await chrome.tabs.sendMessage(activeTab.id, message)
+      return true
+    }
+  } catch (err) {
+    warn('Failed to dispatch message to active tab', { message, err })
+  }
+  return false
+}
+
 onMessage(async (message): Promise<MsgResponse> => {
   switch (message.type) {
     case 'PING':
@@ -42,6 +55,15 @@ onMessage(async (message): Promise<MsgResponse> => {
       } catch (err) {
         error('Failed to persist color', err)
         return { ok: false, error: 'Failed to save color' }
+      }
+    }
+    case 'SHOW_OVERLAY':
+    case 'HIDE_OVERLAY':
+    case 'TOGGLE_OVERLAY': {
+      const delivered = await dispatchToActiveTab(message)
+      return {
+        ok: delivered,
+        data: delivered ? 'dispatched' : 'no-active-tab'
       }
     }
     default:

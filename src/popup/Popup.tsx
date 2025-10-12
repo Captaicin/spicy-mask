@@ -8,6 +8,33 @@ const Popup: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'error'>('loading')
 
   useEffect(() => {
+    sendMessage({ type: 'SHOW_OVERLAY' })
+      .then((response) => {
+        if (!response.ok) {
+          warn('Overlay display request was not acknowledged', response)
+        }
+      })
+      .catch((err) => warn('Failed to request overlay display', err))
+
+    const handleUnload = () => {
+      sendMessage({ type: 'HIDE_OVERLAY' })
+        .then((response) => {
+          if (!response.ok) {
+            warn('Overlay hide request was not acknowledged', response)
+          }
+        })
+        .catch((err) => warn('Failed to hide overlay on unload', err))
+    }
+
+    window.addEventListener('unload', handleUnload)
+
+    return () => {
+      handleUnload()
+      window.removeEventListener('unload', handleUnload)
+    }
+  }, [])
+
+  useEffect(() => {
     const bootstrap = async () => {
       try {
         const ping = await sendMessage({ type: 'PING' })
