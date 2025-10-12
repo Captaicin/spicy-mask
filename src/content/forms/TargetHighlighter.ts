@@ -66,6 +66,9 @@ export class TargetHighlighter {
     this.container.appendChild(this.inner)
     document.body.appendChild(this.container)
 
+    this.target.addEventListener('focusin', this.handleFocusChange, true)
+    this.target.addEventListener('focusout', this.handleFocusChange, true)
+
     this.root = createRoot(this.inner)
 
     this.syncBaseStyles()
@@ -114,6 +117,9 @@ export class TargetHighlighter {
       return
     }
     this.destroyed = true
+
+    this.target.removeEventListener('focusin', this.handleFocusChange, true)
+    this.target.removeEventListener('focusout', this.handleFocusChange, true)
 
     this.resizeObserver?.disconnect()
     this.resizeObserver = null
@@ -207,6 +213,8 @@ export class TargetHighlighter {
     if (this.destroyed) {
       return
     }
+    const showScanButton = this.hasValue || this.isTargetFocused()
+
     this.root.render(
       React.createElement(TextHighlightOverlay, {
         value: this.currentValue,
@@ -223,8 +231,28 @@ export class TargetHighlighter {
         onFocusMatch: this.callbacks.onFocusMatch,
         onRequestScan: this.callbacks.onRequestScan,
         closeSignal: this.closeSignal,
-        showScanButton: this.hasValue
+        showScanButton
       })
     )
+  }
+
+  private readonly handleFocusChange = (): void => {
+    if (this.destroyed) {
+      return
+    }
+    if (!this.hasValue && this.currentMatches.length === 0) {
+      this.container.style.display = this.isTargetFocused() ? 'block' : 'none'
+    }
+    this.requestRender()
+  }
+
+  private isTargetFocused(): boolean {
+    if (document.activeElement === this.target) {
+      return true
+    }
+    if (!this.target.shadowRoot) {
+      return false
+    }
+    return this.target.shadowRoot.contains(document.activeElement)
   }
 }
