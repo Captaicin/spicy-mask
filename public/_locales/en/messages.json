@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Spicy Mask"
+  },
+  "extDesc": {
+    "message": "A React + TypeScript boilerplate for Chrome extensions."
+  }
+}
