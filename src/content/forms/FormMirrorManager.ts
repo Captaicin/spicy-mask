@@ -44,7 +44,6 @@ export class FormMirrorManager {
         this.mirrors.set(element, instance)
       }
       instance.render(index, filterId)
-      instance.overlay.updatePosition()
     })
   }
 
@@ -67,7 +66,7 @@ export class FormMirrorManager {
       tag: element.tagName,
       name: element.getAttribute('name') ?? null
     })
-    const overlay = createOverlayShadow(element, overlayId)
+    const overlay = createOverlayShadow(overlayId)
     const container = document.createElement('div')
     overlay.shadow.appendChild(container)
     const root = createRoot(container)
