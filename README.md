@@ -23,18 +23,22 @@ src/
   content/         # Content scripts and injected UI
   popup/           # Browser action popup
   options/         # Extension options page
-  shared/          # Messaging, storage, utilities, types
+  shared/          # Messaging, utilities, types
   styles/          # Global styles shared by all React surfaces
 manifest.ts        # Typed Manifest V3 definition consumed by CRX plugin
 ```
+
+## Overlay Workflow
+
+The content script scans the page for form controls, filters them via `FormFilter` subclasses, and mirrors matching inputs into hidden shadow DOM hosts. The floating overlay panel lets you toggle mirroring and swap filters without leaving the page. Use the extension popup to show or hide the panel on demand.
 
 ## Messaging Pattern
 
 Messages use a discriminated union defined in `src/shared/types.ts`. The `sendMessage` helper returns a typed promise, while `onMessage` wraps listeners and ensures async handlers resolve correctly. Background responses follow the `MsgResponse` contract so callers can safely branch on `ok`.
 
-## Storage & Permissions
+## Permissions
 
-Color preferences persist via `chrome.storage.sync`; a minimal wrapper (`src/shared/storage.ts`) keeps the API ergonomic. Host permissions and matches are intentionally broad for development convenience—trim them for production to comply with the principle of least privilege.
+Host permissions and matches are intentionally broad for development convenience—trim them for production to comply with the principle of least privilege.
 
 ## Tooling
 

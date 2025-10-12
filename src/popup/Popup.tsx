@@ -1,20 +1,24 @@
 import React, { useEffect, useState } from 'react'
 import { sendMessage } from '../shared/messaging'
-import { DEFAULT_COLOR } from '../shared/constants'
 import { log, warn } from '../shared/logger'
 
 const Popup: React.FC = () => {
-  const [color, setColor] = useState(DEFAULT_COLOR)
-  const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'error'>('loading')
+  const [status, setStatus] = useState<'idle' | 'error'>('idle')
 
   useEffect(() => {
-    sendMessage({ type: 'SHOW_OVERLAY' })
-      .then((response) => {
+    const showOverlay = async () => {
+      try {
+        const response = await sendMessage({ type: 'SHOW_OVERLAY' })
         if (!response.ok) {
           warn('Overlay display request was not acknowledged', response)
         }
-      })
-      .catch((err) => warn('Failed to request overlay display', err))
+      } catch (err) {
+        warn('Failed to request overlay display', err)
+        setStatus('error')
+      }
+    }
+
+    showOverlay()
 
     const handleUnload = () => {
       sendMessage({ type: 'HIDE_OVERLAY' })
@@ -39,13 +43,8 @@ const Popup: React.FC = () => {
       try {
         const ping = await sendMessage({ type: 'PING' })
         log('Background ready', ping)
-        const response = await sendMessage({ type: 'GET_COLOR' })
-        if (response.ok && typeof response.data === 'string') {
-          setColor(response.data)
-        }
-        setStatus('idle')
       } catch (err) {
-        warn('Failed to load color', err)
+        warn('Popup failed to reach background service worker', err)
         setStatus('error')
       }
     }
@@ -53,37 +52,34 @@ const Popup: React.FC = () => {
     bootstrap()
   }, [])
 
-  const handleColorChange = async (value: string) => {
-    setColor(value)
-    setStatus('saving')
+  const handleShow = () => {
+    sendMessage({ type: 'SHOW_OVERLAY' }).catch((err) => warn('Failed to show overlay via popup', err))
+  }
 
-    try {
-      const response = await sendMessage({ type: 'SET_COLOR', payload: { color: value } })
-      if (response.ok) {
-        setStatus('idle')
-      } else {
-        setStatus('error')
-      }
-    } catch (err) {
-      warn('Failed to save color', err)
-      setStatus('error')
-    }
+  const handleHide = () => {
+    sendMessage({ type: 'HIDE_OVERLAY' }).catch((err) => warn('Failed to hide overlay via popup', err))
+  }
+
+  const handleToggle = () => {
+    sendMessage({ type: 'TOGGLE_OVERLAY' }).catch((err) => warn('Failed to toggle overlay via popup', err))
   }
 
   return (
     <div className="panel">
       <h1>Spicy Mask</h1>
-      <p className="subtitle">Pick a highlight color for the content script overlay.</p>
-      <label className="field">
-        <span>Highlight color</span>
-        <input type="color" value={color} onChange={(event) => handleColorChange(event.target.value)} />
-      </label>
-      <p className="hint">
-        Status: {status === 'idle' && 'Ready'}
-        {status === 'loading' && 'Loading…'}
-        {status === 'saving' && 'Saving…'}
-        {status === 'error' && 'Something went wrong'}
-      </p>
+      <p className="subtitle">Manage the overlay panel for debugging filtered form inputs.</p>
+
+      <button className="button" onClick={handleShow}>
+        Show overlay panel
+      </button>
+      <button className="button" onClick={handleHide}>
+        Hide overlay panel
+      </button>
+      <button className="button" onClick={handleToggle}>
+        Toggle overlay panel
+      </button>
+
+      <p className="hint">Status: {status === 'idle' ? 'Connected' : 'Check background script console'}</p>
     </div>
   )
 }

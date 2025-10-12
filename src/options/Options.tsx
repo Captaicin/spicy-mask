@@ -1,67 +1,57 @@
-import React, { useEffect, useState } from 'react'
-import { sendMessage } from '../shared/messaging'
-import { DEFAULT_COLOR } from '../shared/constants'
-import { log, warn } from '../shared/logger'
+import React from 'react'
+
+const filters = [
+  {
+    id: 'all',
+    label: 'All inputs',
+    description: 'Target every eligible input, textarea, and select element on the page.'
+  },
+  {
+    id: 'text',
+    label: 'Textual inputs',
+    description: 'Limit mirroring to text-like inputs and textareas such as email, password, or search.'
+  },
+  {
+    id: 'mock',
+    label: 'Mock / test inputs',
+    description: 'Surface elements that look like test scaffolding (data attributes, "mock" identifiers, etc.).'
+  }
+]
 
 const Options: React.FC = () => {
-  const [color, setColor] = useState(DEFAULT_COLOR)
-  const [message, setMessage] = useState('Loading…')
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const response = await sendMessage({ type: 'GET_COLOR' })
-        if (response.ok && typeof response.data === 'string') {
-          setColor(response.data)
-          setMessage('Color loaded from sync storage.')
-        } else {
-          setMessage('Using default color.')
-        }
-      } catch (err) {
-        warn('Failed to load options', err)
-        setMessage('Could not access background service worker.')
-      }
-    }
-
-    load()
-  }, [])
-
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (event) => {
-    event.preventDefault()
-    try {
-      const response = await sendMessage({ type: 'SET_COLOR', payload: { color } })
-      if (response.ok) {
-        setMessage('Saved! Highlights will use the new color.')
-      } else {
-        setMessage('Save failed. Try again.')
-      }
-    } catch (err) {
-      warn('Failed to persist option', err)
-      setMessage('Save failed. Try again.')
-    }
-  }
-
   return (
     <main className="page">
       <h1>Spicy Mask Options</h1>
       <p className="subtitle">
-        Configure defaults for your extension. Settings sync via <code>chrome.storage.sync</code>.
+        Spicy Mask mirrors form controls that match the selected filter. Use the extension action to open the
+        overlay panel on any page and choose which filter applies.
       </p>
-      <form onSubmit={handleSubmit} className="card">
-        <label className="field">
-          <span>Preferred highlight color</span>
-          <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
-        </label>
-        <button type="submit" className="button">
-          Save
-        </button>
-      </form>
-      <p className="hint">{message}</p>
+
+      <section className="card">
+        <h2>Available filters</h2>
+        <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {filters.map((filter) => (
+            <li key={filter.id}>
+              <strong>{filter.label}</strong>: {filter.description}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="info">
-        <h2>Minimal permissions reminder</h2>
+        <h2>How to debug mirrored inputs</h2>
         <p>
-          Host permissions are intentionally broad in this example. Reduce them for real deployments to
-          follow the principle of least privilege.
+          Toggle the overlay panel from the extension popup. Each mirrored input renders inside a hidden
+          shadow DOM host. Check the browser console for detailed logs about mirror creation, updates, and
+          value propagation.
+        </p>
+      </section>
+
+      <section className="info">
+        <h2>Permissions reminder</h2>
+        <p>
+          Host permissions remain broad for development convenience. Narrow them down before shipping to
+          production in order to follow the principle of least privilege.
         </p>
       </section>
     </main>

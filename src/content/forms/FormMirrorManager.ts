@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { createOverlayShadow, type ShadowOverlay } from '../../shared/dom'
+import { MIRROR_OVERLAY_PREFIX } from '../../shared/constants'
 import { log } from '../../shared/logger'
 import type { FormElement } from './FormFilter'
 import MirrorField from './MirrorField'
@@ -48,6 +49,10 @@ export class FormMirrorManager {
   }
 
   dispose(): void {
+    if (this.mirrors.size === 0) {
+      return
+    }
+
     log('FormMirrorManager: disposing all mirrors', { count: this.mirrors.size })
     for (const instance of this.mirrors.values()) {
       this.teardownInstance(instance)
@@ -56,7 +61,7 @@ export class FormMirrorManager {
   }
 
   private createInstance(element: FormElement): MirrorInstance {
-    const overlayId = `spicy-mask-field-${++this.counter}`
+    const overlayId = `${MIRROR_OVERLAY_PREFIX}-${++this.counter}`
     log('FormMirrorManager: creating mirror instance', {
       overlayId,
       tag: element.tagName,

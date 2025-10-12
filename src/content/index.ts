@@ -1,6 +1,3 @@
-import { sendMessage } from '../shared/messaging'
-import { DEFAULT_COLOR } from '../shared/constants'
-import { warn } from '../shared/logger'
 import type { Msg } from '../shared/types'
 import { mountUI, showUI, hideUI, toggleUI } from './ui/mount'
 import { formOverlayController } from './forms/FormOverlayController'
@@ -35,19 +32,8 @@ const overlayMessageHandler: Parameters<typeof chrome.runtime.onMessage.addListe
 
 chrome.runtime.onMessage.addListener(overlayMessageHandler)
 
-const init = async () => {
-  let color = DEFAULT_COLOR
-
-  try {
-    const response = await sendMessage({ type: 'GET_COLOR' })
-    if (response.ok && typeof response.data === 'string') {
-      color = response.data
-    }
-  } catch (err) {
-    warn('Failed to retrieve color, using default', err)
-  }
-
-  formOverlayController.init(color)
+const init = () => {
+  formOverlayController.init()
   mountUI()
   hideUI()
 

@@ -1,4 +1,3 @@
-import { DEFAULT_COLOR } from '../../shared/constants'
 import { log, warn } from '../../shared/logger'
 import { FormFilter, FormElement } from './FormFilter'
 import { FormMirrorManager } from './FormMirrorManager'
@@ -6,11 +5,6 @@ import { FormScanner } from './FormScanner'
 import { getFilterById, getFilters } from './filterRegistry'
 
 type Listener = (state: FormOverlayState) => void
-
-type HighlightSnapshot = {
-  outline: string
-  outlineOffset: string
-}
 
 export type FormOverlayState = {
   enabled: boolean
@@ -29,34 +23,19 @@ export class FormOverlayController {
 
   private filters = getFilters()
   private activeFilter: FormFilter = this.filters[0]
-  private color: string = DEFAULT_COLOR
   private enabled = true
   private allElements: FormElement[] = []
   private filteredElements: FormElement[] = []
-  private highlighted = new Set<FormElement>()
-  private originalStyles = new WeakMap<FormElement, HighlightSnapshot>()
 
-  init(color: string): void {
-    this.color = color
+  init(): void {
     this.refresh()
     this.observeDom()
-  }
-
-  getColor(): string {
-    return this.color
   }
 
   destroy(): void {
     this.mutationObserver?.disconnect()
     this.mirrorManager.dispose()
-    this.clearHighlight()
     this.listeners.clear()
-  }
-
-  setColor(color: string): void {
-    this.color = color
-    log('FormOverlayController: setColor', { color })
-    this.applyHighlight(this.filteredElements)
   }
 
   setEnabled(next: boolean): void {
@@ -68,12 +47,7 @@ export class FormOverlayController {
 
     log('FormOverlayController: setEnabled', { enabled: this.enabled })
 
-    if (!this.enabled) {
-      this.mirrorManager.dispose()
-      this.clearHighlight()
-    } else {
-      this.applyCurrentFilter()
-    }
+    this.applyCurrentFilter()
 
     this.emit()
   }
@@ -116,11 +90,14 @@ export class FormOverlayController {
     this.filteredElements = this.activeFilter.filter(this.allElements)
 
     if (this.enabled) {
-      this.applyHighlight(this.filteredElements)
       this.mirrorManager.sync(this.filteredElements, this.activeFilter.id)
     } else {
       this.mirrorManager.dispose()
-      this.clearHighlight()
+      if (this.filteredElements.length > 0) {
+        log('FormOverlayController: overlay disabled; mirrors cleared', {
+          total: this.allElements.length
+        })
+      }
     }
 
     log('FormOverlayController: applied filter state', {
@@ -131,48 +108,6 @@ export class FormOverlayController {
     })
 
     this.emit()
-  }
-
-  private applyHighlight(elements: FormElement[]): void {
-    const nextSet = new Set(elements)
-
-    for (const element of this.highlighted) {
-      if (!nextSet.has(element)) {
-        this.restoreHighlight(element)
-      }
-    }
-
-    elements.forEach((element) => {
-      if (!this.originalStyles.has(element)) {
-        this.originalStyles.set(element, {
-          outline: element.style.outline,
-          outlineOffset: element.style.outlineOffset
-        })
-      }
-      element.style.outline = `2px solid ${this.color}`
-      element.style.outlineOffset = '2px'
-      this.highlighted.add(element)
-    })
-  }
-
-  private clearHighlight(): void {
-    for (const element of this.highlighted) {
-      this.restoreHighlight(element)
-    }
-    this.highlighted.clear()
-  }
-
-  private restoreHighlight(element: FormElement): void {
-    const original = this.originalStyles.get(element)
-    if (original) {
-      element.style.outline = original.outline
-      element.style.outlineOffset = original.outlineOffset
-      this.originalStyles.delete(element)
-    } else {
-      element.style.outline = ''
-      element.style.outlineOffset = ''
-    }
-    this.highlighted.delete(element)
   }
 
   private observeDom(): void {

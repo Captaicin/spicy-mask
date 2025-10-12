@@ -1,33 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { sendMessage } from '../../shared/messaging'
-import { DEFAULT_COLOR } from '../../shared/constants'
-import { warn } from '../../shared/logger'
 import { formOverlayController, type FormOverlayState } from '../forms/FormOverlayController'
 
 const Root: React.FC = () => {
-  const [color, setColor] = useState(() => formOverlayController.getColor() || DEFAULT_COLOR)
-  const [status, setStatus] = useState<'loading' | 'idle' | 'saving' | 'error'>('loading')
   const [overlayState, setOverlayState] = useState<FormOverlayState>(() => formOverlayController.getState())
 
   useEffect(() => formOverlayController.subscribe(setOverlayState), [])
-
-  useEffect(() => {
-    const bootstrap = async () => {
-      try {
-        const response = await sendMessage({ type: 'GET_COLOR' })
-        if (response.ok && typeof response.data === 'string') {
-          setColor(response.data)
-          formOverlayController.setColor(response.data)
-        }
-        setStatus('idle')
-      } catch (err) {
-        warn('Failed to initialize color from background', err)
-        setStatus('error')
-      }
-    }
-
-    bootstrap()
-  }, [])
 
   const handleToggle = () => {
     formOverlayController.setEnabled(!overlayState.enabled)
@@ -39,24 +16,6 @@ const Root: React.FC = () => {
 
   const handleRefresh = () => {
     formOverlayController.refresh()
-  }
-
-  const handleColorChange = async (value: string) => {
-    setColor(value)
-    formOverlayController.setColor(value)
-
-    setStatus('saving')
-    try {
-      const response = await sendMessage({ type: 'SET_COLOR', payload: { color: value } })
-      if (response.ok) {
-        setStatus('idle')
-      } else {
-        setStatus('error')
-      }
-    } catch (err) {
-      warn('Failed to persist color', err)
-      setStatus('error')
-    }
   }
 
   const { enabled, filterId, filters, total, filtered } = overlayState
@@ -85,16 +44,6 @@ const Root: React.FC = () => {
       </header>
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
-          <span>Highlight color</span>
-          <input
-            type="color"
-            value={color}
-            onChange={(event) => handleColorChange(event.target.value)}
-            disabled={status === 'saving'}
-            style={{ width: '100%', height: 36, borderRadius: 8, border: 'none' }}
-          />
-        </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
           <span>Form filter</span>
           <select
@@ -168,10 +117,7 @@ const Root: React.FC = () => {
       </section>
 
       <footer style={{ fontSize: 11, color: '#94a3b8' }}>
-        {status === 'loading' && 'Initializing…'}
-        {status === 'saving' && 'Saving color to storage…'}
-        {status === 'error' && 'Could not sync with background. Check extension permissions.'}
-        {status === 'idle' && `${filtered} fields match the ${filterId} filter.`}
+        Mirroring {enabled ? filtered : 0} of {total} form fields.
       </footer>
     </div>
   )

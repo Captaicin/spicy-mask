@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { injectShadowRoot } from '../../shared/dom'
+import { OVERLAY_ROOT_ID } from '../../shared/constants'
 import RootApp from './Root'
 import '../../styles/globals.css'
 
@@ -9,7 +10,7 @@ let container: HTMLElement | null = null
 
 const ensureMounted = () => {
   if (!root || !container) {
-    const shadow = injectShadowRoot('spicy-mask-root')
+    const shadow = injectShadowRoot(OVERLAY_ROOT_ID)
     container = shadow.getElementById('root') as HTMLElement | null
 
     if (!container) {
@@ -21,7 +22,7 @@ const ensureMounted = () => {
     container.style.display = 'none'
 
     root = createRoot(container)
-    root.render(React.createElement(RootApp))
+    root.render(React.createElement(React.StrictMode, null, React.createElement(RootApp)))
   }
 }
 

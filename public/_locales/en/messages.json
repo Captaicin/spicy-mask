@@ -3,6 +3,6 @@
     "message": "Spicy Mask"
   },
   "extDesc": {
-    "message": "A React + TypeScript boilerplate for Chrome extensions."
+    "message": "Mirror filtered form controls for debugging Chrome extensions."
   }
 }
