@@ -47,7 +47,8 @@ const normalizeMatch = (match: unknown): GeminiClientMatch | null => {
     value: candidate.value,
     startIndex: candidate.startIndex,
     endIndex: candidate.endIndex,
-    entityType: candidate.entityType
+    entityType: candidate.entityType,
+    reason: typeof candidate.reason === 'string' ? candidate.reason : undefined
   }
 }
 

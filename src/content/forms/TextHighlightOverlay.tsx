@@ -789,6 +789,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                 {match.entityType ? (
                   <div style={{ opacity: 0.7 }}>Type: {match.entityType}</div>
                 ) : null}
+                {match.reason ? (
+                  <div style={{ opacity: 0.7 }}>Reason: {match.reason}</div>
+                ) : null}
               </div>
             ))}
           </div>

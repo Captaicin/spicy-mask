@@ -38,7 +38,8 @@ export class GeminiDetector extends BaseDetector {
       match: match.value,
       startIndex: match.startIndex,
       endIndex: match.endIndex,
-      entityType: match.entityType
+      entityType: match.entityType,
+      reason: match.reason ?? 'Detected by Gemini scan'
     }))
   }
 }

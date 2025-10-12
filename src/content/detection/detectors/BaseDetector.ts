@@ -27,6 +27,7 @@ export interface DetectionMatch {
   startIndex: number
   endIndex: number
   entityType?: GeminiEntityType
+  reason?: string
 }
 
 export abstract class BaseDetector {

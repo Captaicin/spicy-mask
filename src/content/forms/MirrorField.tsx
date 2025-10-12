@@ -104,6 +104,39 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
   const isMountedRef = useRef(true)
   const detectionSequenceRef = useRef(0)
+  const manualMatchesRef = useRef<DetectionMatch[]>([])
+
+  const MANUAL_DETECTOR_IDS = useMemo(() => new Set(['gemini-detector']), [])
+
+  const isManualDetectorMatch = useCallback(
+    (match: DetectionMatch) => MANUAL_DETECTOR_IDS.has(match.detectorId),
+    [MANUAL_DETECTOR_IDS]
+  )
+
+  const filterValidManualMatches = useCallback(
+    (valueSnapshot: string): DetectionMatch[] => {
+      return manualMatchesRef.current.filter((match) => {
+        const slice = valueSnapshot.slice(match.startIndex, match.endIndex)
+        return slice === match.match
+      })
+    },
+    []
+  )
+
+  const mergeMatches = useCallback((primary: DetectionMatch[], secondary: DetectionMatch[]): DetectionMatch[] => {
+    const dedupe = new Map<string, DetectionMatch>()
+    const insert = (match: DetectionMatch) => {
+      const key = `${match.detectorId}:${match.startIndex}:${match.endIndex}:${match.match}`
+      if (!dedupe.has(key)) {
+        dedupe.set(key, match)
+      }
+    }
+
+    primary.forEach(insert)
+    secondary.forEach(insert)
+
+    return Array.from(dedupe.values())
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -131,8 +164,18 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           return
         }
 
-        setMatches(results)
-        highlighterRef.current?.update(nextValue, results, { trigger })
+        let reconciled = results
+
+        if (trigger === 'manual') {
+          manualMatchesRef.current = results.filter(isManualDetectorMatch)
+        } else {
+          const preservedManualMatches = filterValidManualMatches(nextValue)
+          manualMatchesRef.current = preservedManualMatches
+          reconciled = mergeMatches(results, preservedManualMatches)
+        }
+
+        setMatches(reconciled)
+        highlighterRef.current?.update(nextValue, reconciled, { trigger })
       } catch (err) {
         warn('Detection run failed', {
           filterId,

@@ -34,7 +34,8 @@ const gatherMatches = (text: string, token: string, entityType: EntityType): Gem
       value: token,
       startIndex: cursor,
       endIndex: cursor + token.length,
-      entityType
+      entityType,
+      reason: `Matched token "${token}"`
     })
 
     cursor = text.indexOf(token, cursor + 1)

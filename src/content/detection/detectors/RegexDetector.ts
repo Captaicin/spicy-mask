@@ -38,7 +38,9 @@ export class RegexDetector extends BaseDetector {
         detectorId: this.id,
         match: matchText,
         startIndex,
-        endIndex
+        endIndex,
+        entityType: 'pattern_match',
+        reason: `Matched pattern ${this.pattern.toString()}`
       }
 
       matches.push(match)
