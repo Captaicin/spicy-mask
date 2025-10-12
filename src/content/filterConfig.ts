@@ -1,8 +1,9 @@
 import type { FormOverlayConfig } from './forms/FormOverlayController'
-import { AllFormFilter } from './forms/filters/AllFormFilter'
+import { TextFormFilter } from './forms/filters'
+// import { AllFormFilter } from './forms/filters/AllFormFilter'
 
 // Swap this instance for another FormFilter (or a custom implementation) to change mirroring behaviour.
-const injectedFilter = new AllFormFilter()
+const injectedFilter = new TextFormFilter()
 
 export const overlayConfig: FormOverlayConfig = {
   filter: injectedFilter,

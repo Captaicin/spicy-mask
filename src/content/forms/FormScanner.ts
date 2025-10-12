@@ -22,7 +22,8 @@ export class FormScanner {
     }
 
     if (element instanceof HTMLSelectElement) {
-      return true
+      // Only include single-line selects to mimic text choice; skip multi-selects for simplicity.
+      return !element.multiple
     }
 
     if (element instanceof HTMLElement && element.matches(CONTENTEDITABLE_SELECTOR)) {
@@ -34,7 +35,14 @@ export class FormScanner {
       if (!computed) {
         return true
       }
-      return computed.display !== 'none' && computed.visibility !== 'hidden'
+      if (computed.display === 'none' || computed.visibility === 'hidden') {
+        return false
+      }
+      // Skip contenteditable regions that disable text input via user-modify or pointer events.
+      if (computed.webkitUserModify && computed.webkitUserModify === 'read-only') {
+        return false
+      }
+      return computed.pointerEvents !== 'none'
     }
 
     return false

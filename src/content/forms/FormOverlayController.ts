@@ -80,10 +80,12 @@ export class FormOverlayController {
       this.allElements = []
     }
 
+    this.filteredElements = filter.filter(this.allElements)
+    
     if (!this.hasLoggedInitialScan) {
       this.hasLoggedInitialScan = true
       log('Spicy Mask discovered form inputs',
-        this.allElements.map((element) => ({
+        this.filteredElements.map((element) => ({
           tag: element.tagName.toLowerCase(),
           type: element instanceof HTMLInputElement ? element.type : undefined,
           name: element.getAttribute('name') ?? undefined,
@@ -91,8 +93,6 @@ export class FormOverlayController {
         }))
       )
     }
-
-    this.filteredElements = filter.filter(this.allElements)
 
     if (this.enabled) {
       this.mirrorManager.sync(this.filteredElements, filter.id)
