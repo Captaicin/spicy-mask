@@ -4,6 +4,7 @@
 - 브라우저 페이지 위에서 동작하며 폼 요소를 스캔하고 미러링 UI를 주입합니다.
 - 민감 텍스트 감지를 위해 감지 엔진과 마스킹 로직을 실행합니다.
 - 필터 전략(`FormFilter`)을 통해 미러링 대상 폼을 결정합니다.
+- 사용자 트리거(Start Scan)와 자동 감지를 구분해 결과를 통합하고, 수동 감지 결과를 마스킹 후에도 유지합니다.
 
 ## 실행 흐름
 1. `index.ts`가 DOM 준비 상태를 확인해 `init()`을 호출합니다.
@@ -28,9 +29,9 @@
 | `FormOverlayController.ts` | DOM 스캔, 필터 적용, 미러링 동기화를 총괄합니다. MutationObserver로 DOM 변화를 감시합니다. |
 | `FormScanner.ts` | DOM에서 입력 컨트롤을 수집하고 가시성/상태 검사를 수행합니다. |
 | `FormMirrorManager.ts` | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다. |
-| `MirrorField.tsx` | 단일 폼 요소를 미러링하는 React 컴포넌트. 감지, 하이라이트, 마스킹 동작을 orchestration 합니다. |
-| `TargetHighlighter.ts` | 대상 필드 위에 하이라이트 레이어를 띄우고 팝오버/버튼 인터랙션을 처리합니다. |
-| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. |
+| `MirrorField.tsx` | 단일 폼 요소를 미러링하는 React 컴포넌트. 감지, 하이라이트, 마스킹 동작을 orchestration 하며, 수동 감지(Gemini) 결과를 캐시했다가 자동 감지 결과와 병합합니다. |
+| `TargetHighlighter.ts` | 대상 필드 위에 하이라이트 레이어를 띄우고 팝오버/버튼 인터랙션을 처리합니다. 감지 트리거(`auto`/`manual`) 메타데이터를 오버레이로 전달합니다. |
+| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. Start Scan 도구 팝오버, 지연 상태(Scanning…), 감지 결과 요약 및 추가 Mask all 버튼을 렌더링합니다. |
 | `filters/` | 빌트인 필터 구현 모음 (`AllFormFilter`, `MockFormFilter`, `TextFormFilter`). |
 
 ### 필터 구현
@@ -43,11 +44,11 @@
 
 | 경로 | 설명 |
 | --- | --- |
-| `DetectionEngine.ts` | 등록된 `BaseDetector` 인스턴스를 순회해 감지 결과를 집계합니다. 에러 로깅 포함. |
-| `detectors/BaseDetector.ts` | 감지기 기본 클래스와 입력/출력 타입 정의. |
-| `detectors/RegexDetector.ts` | 정규식 기반 감지기. 구성 시 커스텀 패턴을 받을 수 있습니다. |
+| `DetectionEngine.ts` | 등록된 `BaseDetector` 인스턴스를 순회해 감지 결과를 집계합니다. 비동기 감지를 지원하고, 감지 트리거에 따라 결과를 dedupe 합니다. |
+| `detectors/BaseDetector.ts` | 감지기 기본 클래스와 입력/출력 타입 정의. `DetectionMatch`에 `entityType`과 `reason` 필드를 포함합니다. |
+| `detectors/RegexDetector.ts` | 정규식 기반 감지기. 구성 시 커스텀 패턴을 받을 수 있으며 감지 사유(`reason`)를 제공합니다. |
 | `detectors/MockDetector.ts` | 데모용 고정 토큰(`asdfas`) 탐지기. 기본 감지 배열에 포함됩니다. |
-| `detectors/GeminiDetector.ts` | 향후 외부 Gemini 서비스를 호출할 스텁. 현재는 Mock 과 동일한 토큰을 감시합니다. |
+| `detectors/GeminiDetector.ts` | 수동(Start Scan) 실행 시에만 백그라운드 `geminiScan`을 호출하며, 전화번호/이메일 후보와 감지 사유를 반환합니다. |
 | `detectors/index.ts` | 감지기 컬렉션을 내보내고 기본 감지기 세트를 구성합니다. |
 | `index.ts` | `DetectionEngine` 싱글턴을 생성하고 재노출합니다. |
 
@@ -64,3 +65,4 @@
 - 새로운 감지기를 추가하려면 `BaseDetector`를 상속하고 `defaultDetectors` 배열에 추가하세요.
 - 필터 전략 교체는 `filterConfig.ts`의 `injectedFilter`를 다른 구현으로 바꾸면 됩니다.
 - UI 동작 디버깅은 `log` 출력과 `TargetHighlighter` 팝오버 상태를 활용하세요.
+- Start Scan 시 3초 지연(백그라운드 스텁)을 고려해 비동기 흐름을 검증하세요. 마스킹 후에도 Gemini 감지 결과가 유지되는지 확인하는 스냅샷 테스트를 권장합니다.
