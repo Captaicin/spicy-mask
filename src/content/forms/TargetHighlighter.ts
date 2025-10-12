@@ -22,6 +22,7 @@ type TargetHighlighterCallbacks = {
   onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+  onRequestScan?: () => void
 }
 
 export class TargetHighlighter {
@@ -42,6 +43,7 @@ export class TargetHighlighter {
   private whiteSpace: React.CSSProperties['whiteSpace'] = 'pre-wrap'
   private wordBreak: React.CSSProperties['wordBreak'] = 'break-word'
   private closeSignal = 0
+  private hasValue = false
 
   constructor(target: HTMLElement, context: DetectionContext, callbacks: TargetHighlighterCallbacks = {}) {
     this.target = target
@@ -78,8 +80,11 @@ export class TargetHighlighter {
 
     this.currentValue = value
     this.currentMatches = matches
+    this.hasValue = typeof value === 'string' && value.length > 0
 
-    if (!matches || matches.length === 0) {
+    const hasMatches = Array.isArray(matches) && matches.length > 0
+
+    if (!hasMatches && !this.hasValue) {
       this.container.style.display = 'none'
       return
     }
@@ -180,7 +185,7 @@ export class TargetHighlighter {
   }
 
   private requestRender(): void {
-    if (this.destroyed || this.container.style.display === 'none' || this.currentMatches.length === 0) {
+    if (this.destroyed || this.container.style.display === 'none') {
       return
     }
     this.render()
@@ -199,7 +204,7 @@ export class TargetHighlighter {
   }
 
   private render(): void {
-    if (this.destroyed || this.currentMatches.length === 0) {
+    if (this.destroyed) {
       return
     }
     this.root.render(
@@ -216,7 +221,9 @@ export class TargetHighlighter {
         onMaskSegment: this.callbacks.onMaskSegment,
         onMaskAll: this.callbacks.onMaskAll,
         onFocusMatch: this.callbacks.onFocusMatch,
-        closeSignal: this.closeSignal
+        onRequestScan: this.callbacks.onRequestScan,
+        closeSignal: this.closeSignal,
+        showScanButton: this.hasValue
       })
     )
   }

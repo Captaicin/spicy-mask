@@ -25,7 +25,9 @@ interface HighlightOverlayProps {
   onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+  onRequestScan?: () => void
   closeSignal: number
+  showScanButton: boolean
 }
 
 interface HighlightSegment {
@@ -200,15 +202,20 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   onMaskSegment,
   onMaskAll,
   onFocusMatch,
-  closeSignal
+  onRequestScan,
+  closeSignal,
+  showScanButton
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
+  const scanButtonRef = useRef<HTMLButtonElement>(null)
+  const scanPopoverRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
   const [hovered, setHovered] = useState<ActiveSegment | null>(null)
   const [pinned, setPinned] = useState<ActiveSegment | null>(null)
   const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
+  const [isScanOpen, setIsScanOpen] = useState(false)
 
   const segments = useMemo(() => buildSegments(value, matches), [value, matches])
 
@@ -311,6 +318,36 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     return () => clearHoverTimer()
   }, [clearHoverTimer])
 
+  const hasValue = showScanButton
+
+  useEffect(() => {
+    if (!hasValue && isScanOpen) {
+      setIsScanOpen(false)
+    }
+  }, [hasValue, isScanOpen])
+
+  useEffect(() => {
+    if (!isScanOpen) {
+      return
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const targetNode = event.target
+      if (!(targetNode instanceof Node)) {
+        return
+      }
+      const button = scanButtonRef.current
+      const popover = scanPopoverRef.current
+      if (button?.contains(targetNode) || popover?.contains(targetNode)) {
+        return
+      }
+      setIsScanOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isScanOpen])
+
   const handleMouseEnter = useCallback(
     (segment: HighlightSegment) => {
       clearHoverTimer()
@@ -356,6 +393,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       setPinned(nextPinned)
       setHovered(null)
       updateAnchorPosition(segment.key)
+      setIsScanOpen(false)
     },
     [context, onFocusMatch, target, updateAnchorPosition, clearHoverTimer]
   )
@@ -385,17 +423,37 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     setHovered(null)
     setAnchor(null)
     setPosition(null)
+    setIsScanOpen(false)
   }, [target, clearHoverTimer])
+
+  const handleScanButtonClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setIsScanOpen((open) => !open)
+    },
+    []
+  )
+
+  const handleStartScan = useCallback(() => {
+    onRequestScan?.()
+    setIsScanOpen(false)
+    closePopover()
+  }, [onRequestScan, closePopover])
 
   const closeSignalRef = useRef(closeSignal)
   useEffect(() => {
     if (closeSignal !== closeSignalRef.current) {
       closeSignalRef.current = closeSignal
       closePopover()
+      setIsScanOpen(false)
     }
   }, [closeSignal, closePopover])
 
-  if (segments.length === 0) {
+  const showScanIcon = showScanButton
+  const scanPopoverOpen = isScanOpen
+
+  if (segments.length === 0 && !showScanIcon) {
     return null
   }
 
@@ -461,6 +519,99 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           )
         })}
       </div>
+
+      {showScanIcon ? (
+        <>
+          <button
+            ref={scanButtonRef}
+            type="button"
+            onClick={handleScanButtonClick}
+            style={{
+              position: 'absolute',
+              right: '8px',
+              bottom: '8px',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              border: 'none',
+              background: '#2563eb',
+              color: '#f8fafc',
+              fontSize: '14px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 6px 16px rgba(37, 99, 235, 0.25)',
+              pointerEvents: 'auto'
+            }}
+            title="Scan for sensitive text"
+          >
+            ✦
+          </button>
+          {scanPopoverOpen ? (
+            <div
+              ref={scanPopoverRef}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                bottom: '48px',
+                width: '180px',
+                padding: '12px',
+                borderRadius: '10px',
+                background: '#0f172a',
+                color: '#f8fafc',
+                boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
+                pointerEvents: 'auto',
+                fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                zIndex: 12
+              }}
+              onClick={(event) => {
+                event.stopPropagation()
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600 }}>Scan Tools</div>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setIsScanOpen(false)
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f8fafc',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleStartScan()
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#22c55e',
+                  color: '#0f172a',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Start Scan
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
 
       {active && position ? (
         <div
