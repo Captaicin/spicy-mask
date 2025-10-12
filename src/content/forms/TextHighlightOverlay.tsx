@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState
 } from 'react'
-import type { DetectionContext, DetectionMatch } from '../detection/detectors/BaseDetector'
+import type { DetectionContext, DetectionMatch, DetectionTrigger } from '../detection/detectors/BaseDetector'
 
 const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
 const POPOVER_WIDTH = 220
@@ -28,6 +28,7 @@ interface HighlightOverlayProps {
   onRequestScan?: () => void
   closeSignal: number
   showScanButton: boolean
+  latestTrigger: DetectionTrigger
 }
 
 interface HighlightSegment {
@@ -112,6 +113,21 @@ const buildSegments = (value: string, matches: DetectionMatch[]): HighlightSegme
   }
 
   return segments
+}
+
+const summarizeMatches = (matches: DetectionMatch[]): { phone: number; email: number } => {
+  let phone = 0
+  let email = 0
+
+  matches.forEach((match) => {
+    if (match.entityType === 'phone_number') {
+      phone += 1
+    } else if (match.entityType === 'email') {
+      email += 1
+    }
+  })
+
+  return { phone, email }
 }
 
 const focusMatch = (target: HTMLElement, match: DetectionMatch) => {
@@ -204,20 +220,26 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   onFocusMatch,
   onRequestScan,
   closeSignal,
-  showScanButton
+  showScanButton,
+  latestTrigger
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const scanButtonRef = useRef<HTMLButtonElement>(null)
   const scanPopoverRef = useRef<HTMLDivElement>(null)
   const hoverTimerRef = useRef<number | null>(null)
+  const runCounterRef = useRef(0)
+  const pendingRunIdRef = useRef<number | null>(null)
   const [hovered, setHovered] = useState<ActiveSegment | null>(null)
   const [pinned, setPinned] = useState<ActiveSegment | null>(null)
   const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const [isScanOpen, setIsScanOpen] = useState(false)
+  const [scanPending, setScanPending] = useState(false)
+  const [scanSummary, setScanSummary] = useState<{ phone: number; email: number } | null>(null)
 
   const segments = useMemo(() => buildSegments(value, matches), [value, matches])
+  const hasMatches = matches.length > 0
 
   const active = pinned ?? hovered
 
@@ -226,6 +248,12 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       window.clearTimeout(hoverTimerRef.current)
       hoverTimerRef.current = null
     }
+  }, [])
+
+  const resetScanState = useCallback(() => {
+    setScanPending(false)
+    setScanSummary(null)
+    pendingRunIdRef.current = null
   }, [])
 
   const updateAnchorPosition = useCallback(
@@ -318,6 +346,24 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     return () => clearHoverTimer()
   }, [clearHoverTimer])
 
+  useEffect(() => {
+    if (latestTrigger !== 'manual') {
+      return
+    }
+
+    const hasPendingRun = pendingRunIdRef.current !== null
+    if (!scanPending && !hasPendingRun) {
+      return
+    }
+
+    if (hasPendingRun) {
+      setScanSummary(summarizeMatches(matches))
+      pendingRunIdRef.current = null
+    }
+
+    setScanPending(false)
+  }, [latestTrigger, matches, scanPending])
+
   const hasValue = showScanButton
 
   useEffect(() => {
@@ -325,6 +371,12 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       setIsScanOpen(false)
     }
   }, [hasValue, isScanOpen])
+
+  useEffect(() => {
+    if (!isScanOpen) {
+      resetScanState()
+    }
+  }, [isScanOpen, resetScanState])
 
   useEffect(() => {
     if (!isScanOpen) {
@@ -424,22 +476,35 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     setAnchor(null)
     setPosition(null)
     setIsScanOpen(false)
-  }, [target, clearHoverTimer])
+    resetScanState()
+  }, [target, clearHoverTimer, resetScanState])
 
   const handleScanButtonClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault()
       event.stopPropagation()
-      setIsScanOpen((open) => !open)
+      setIsScanOpen((open) => {
+        const next = !open
+        if (!next) {
+          resetScanState()
+        } else {
+          setScanPending(false)
+          setScanSummary(null)
+          pendingRunIdRef.current = null
+        }
+        return next
+      })
     },
-    []
+    [resetScanState]
   )
 
   const handleStartScan = useCallback(() => {
+    runCounterRef.current += 1
+    pendingRunIdRef.current = runCounterRef.current
+    setScanPending(true)
+    setScanSummary(null)
     onRequestScan?.()
-    setIsScanOpen(false)
-    closePopover()
-  }, [onRequestScan, closePopover])
+  }, [onRequestScan])
 
   const closeSignalRef = useRef(closeSignal)
   useEffect(() => {
@@ -452,6 +517,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
   const showScanIcon = showScanButton
   const scanPopoverOpen = isScanOpen
+  const showMaskAllButton = Boolean(scanSummary) && !scanPending && hasMatches
 
   if (segments.length === 0 && !showScanIcon) {
     return null
@@ -572,44 +638,88 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 600 }}>Scan Tools</div>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    setIsScanOpen(false)
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#f8fafc',
-                    fontSize: '12px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ×
-                </button>
-              </div>
               <button
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation()
-                  handleStartScan()
+                  setIsScanOpen(false)
+                  resetScanState()
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#f8fafc',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                handleStartScan()
+              }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#22c55e',
+                color: '#0f172a',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Start Scan
+            </button>
+            <div
+              style={{
+                marginTop: '12px',
+                fontSize: '12px',
+                color: '#cbd5f5',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              {scanPending && !scanSummary ? (
+                <span>Scanning…</span>
+              ) : scanSummary ? (
+                <>
+                  <span>Results</span>
+                  <span>• phone_number: {scanSummary.phone}</span>
+                  <span>• email: {scanSummary.email}</span>
+                </>
+              ) : (
+                <span>Run Start Scan to scan PII with Gemini Nano</span>
+              )}
+            </div>
+            {showMaskAllButton ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleMaskAll()
                 }}
                 style={{
                   width: '100%',
-                  padding: '8px',
+                  padding: '6px 10px',
                   borderRadius: '6px',
-                  border: 'none',
-                  background: '#22c55e',
-                  color: '#0f172a',
+                  border: '1px solid rgba(248, 250, 252, 0.4)',
+                  background: 'transparent',
+                  color: '#f8fafc',
                   fontWeight: 600,
                   cursor: 'pointer'
                 }}
               >
-                Start Scan
+                Mask all
               </button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
+        ) : null}
         </>
       ) : null}
 

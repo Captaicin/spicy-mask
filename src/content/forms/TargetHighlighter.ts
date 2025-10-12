@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import TextHighlightOverlay from './TextHighlightOverlay'
-import type { DetectionContext, DetectionMatch } from '../detection/detectors/BaseDetector'
+import type { DetectionContext, DetectionMatch, DetectionTrigger } from '../detection/detectors/BaseDetector'
 
 const MAX_Z_INDEX = '2147483646'
 
@@ -44,6 +44,7 @@ export class TargetHighlighter {
   private wordBreak: React.CSSProperties['wordBreak'] = 'break-word'
   private closeSignal = 0
   private hasValue = false
+  private latestTrigger: DetectionTrigger = 'auto'
 
   constructor(target: HTMLElement, context: DetectionContext, callbacks: TargetHighlighterCallbacks = {}) {
     this.target = target
@@ -76,7 +77,7 @@ export class TargetHighlighter {
     this.attachObservers()
   }
 
-  update(value: string, matches: DetectionMatch[]): void {
+  update(value: string, matches: DetectionMatch[], meta: { trigger?: DetectionTrigger } = {}): void {
     if (this.destroyed) {
       return
     }
@@ -84,6 +85,7 @@ export class TargetHighlighter {
     this.currentValue = value
     this.currentMatches = matches
     this.hasValue = typeof value === 'string' && value.length > 0
+    this.latestTrigger = meta.trigger ?? 'auto'
 
     const hasMatches = Array.isArray(matches) && matches.length > 0
 
@@ -231,7 +233,8 @@ export class TargetHighlighter {
         onFocusMatch: this.callbacks.onFocusMatch,
         onRequestScan: this.callbacks.onRequestScan,
         closeSignal: this.closeSignal,
-        showScanButton
+        showScanButton,
+        latestTrigger: this.latestTrigger
       })
     )
   }

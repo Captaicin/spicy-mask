@@ -132,7 +132,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         }
 
         setMatches(results)
-        highlighterRef.current?.update(nextValue, results)
+        highlighterRef.current?.update(nextValue, results, { trigger })
       } catch (err) {
         warn('Detection run failed', {
           filterId,

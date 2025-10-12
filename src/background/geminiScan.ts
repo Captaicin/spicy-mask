@@ -1,12 +1,16 @@
-import { log } from '../shared/logger'
 import type { GeminiScanMatch } from '../shared/types'
 
 const PHONE_TOKEN = '1234'
 const EMAIL_TOKEN = 'qwer'
+const SCAN_DELAY_MS = 3000
 
 type EntityType = GeminiScanMatch['entityType']
 
-export const scanGeminiEntities = (text: string): GeminiScanMatch[] => {
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+export const scanGeminiEntities = async (text: string): Promise<GeminiScanMatch[]> => {
+  await delay(SCAN_DELAY_MS)
+
   if (!text) {
     return []
   }
@@ -35,6 +39,6 @@ const gatherMatches = (text: string, token: string, entityType: EntityType): Gem
 
     cursor = text.indexOf(token, cursor + 1)
   }
-  log(results)
+
   return results
 }
