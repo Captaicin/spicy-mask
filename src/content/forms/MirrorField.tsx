@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { log } from '../../shared/logger'
 import type { FormElement } from './FormFilter'
-import { detectionEngine, type DetectionContext } from '../detection'
+import { detectionEngine } from '../detection'
+import { type DetectionContext, type DetectionMatch } from '../detection/detectors/BaseDetector'
+import { TargetHighlighter } from './TargetHighlighter'
 
 const isInputElement = (element: FormElement): element is HTMLInputElement =>
   element instanceof HTMLInputElement
@@ -83,6 +85,8 @@ const listSelectOptions = (element: HTMLSelectElement) =>
 const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) => {
   const [value, setValue] = useState(() => getElementValue(target))
   const [options, setOptions] = useState(() => (isSelectElement(target) ? listSelectOptions(target) : []))
+  const [matches, setMatches] = useState<DetectionMatch[]>([])
+  const highlighterRef = useRef<TargetHighlighter | null>(null)
   const detectionContext = useMemo<DetectionContext>(
     () => ({
       element: target,
@@ -94,13 +98,19 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
   const runDetection = useCallback(
     (nextValue: string) => {
-      detectionEngine.run({
+      const results = detectionEngine.run({
         value: nextValue,
         context: detectionContext
       })
+      setMatches(results)
+      highlighterRef.current?.update(nextValue, results)
     },
     [detectionContext]
   )
+
+  useEffect(() => {
+    runDetection(value)
+  }, [runDetection, value])
 
   useEffect(() => {
     const handleInput = () => {
@@ -113,7 +123,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         })
       }
       setValue(nextValue)
-      runDetection(nextValue)
     }
 
     target.addEventListener('input', handleInput)
@@ -123,7 +132,25 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       target.removeEventListener('input', handleInput)
       target.removeEventListener('change', handleInput)
     }
-  }, [target, filterId, index, runDetection])
+  }, [target, filterId, index])
+
+  useEffect(() => {
+    if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
+      return
+    }
+
+    const highlighter = new TargetHighlighter(target)
+    highlighterRef.current = highlighter
+
+    return () => {
+      highlighter.destroy()
+      highlighterRef.current = null
+    }
+  }, [target])
+
+  useEffect(() => {
+    highlighterRef.current?.update(value, matches)
+  }, [value, matches])
 
   useEffect(() => {
     if (!isSelectElement(target)) {
@@ -149,7 +176,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     const newValue = event.target.value
     setValue(newValue)
     setElementValue(target, newValue)
-    runDetection(newValue)
   }
 
   const mirrorControl = () => {
@@ -160,7 +186,17 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           value={value}
           onChange={handleChange}
           rows={Math.max(3, Math.min(6, baseRows))}
-          style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', padding: '8px' }}
+          style={{
+            width: '100%',
+            resize: 'vertical',
+            fontFamily: 'inherit',
+            padding: '8px',
+            background: '#ffffff',
+            color: '#0f172a',
+            caretColor: '#1f2937',
+            border: '1px solid #cbd5f5',
+            borderRadius: '8px'
+          }}
         />
       )
     }
@@ -177,14 +213,22 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       )
     }
 
-    const inputType = isInputElement(target) ? target.type || 'text' : 'text'
+    // const inputType = isInputElement(target) ? target.type || 'text' : 'text'
 
     return (
       <input
-        type={inputType}
+        // type={inputType}
         value={value}
         onChange={handleChange}
-        style={{ width: '100%', padding: '8px' }}
+        style={{
+          width: '100%',
+          padding: '8px',
+          background: '#ffffff',
+          color: '#0f172a',
+          caretColor: '#1f2937',
+          border: '1px solid #cbd5f5',
+          borderRadius: '8px'
+        }}
       />
     )
   }
