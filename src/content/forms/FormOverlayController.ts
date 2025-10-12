@@ -17,7 +17,7 @@ export class FormOverlayController {
 
   private filter: FormFilter | null = null
   private enabled = true
-  private hasLoggedInitialScan = false
+  private lastSnapshotKey: string | null = null
 
   private allElements: FormElement[] = []
   private filteredElements: FormElement[] = []
@@ -41,12 +41,12 @@ export class FormOverlayController {
     this.filteredElements = []
     this.refreshQueued = false
     this.filter = null
-    this.hasLoggedInitialScan = false
+    this.lastSnapshotKey = null
   }
 
   setFilter(filter: FormFilter): void {
     this.filter = filter
-    this.hasLoggedInitialScan = false
+    this.lastSnapshotKey = null
     this.refresh()
   }
 
@@ -71,6 +71,7 @@ export class FormOverlayController {
       this.mirrorManager.dispose()
       this.allElements = []
       this.filteredElements = []
+      this.lastSnapshotKey = null
       return
     }
 
@@ -81,17 +82,18 @@ export class FormOverlayController {
     }
 
     this.filteredElements = filter.filter(this.allElements)
-    
-    if (!this.hasLoggedInitialScan) {
-      this.hasLoggedInitialScan = true
-      log('Spicy Mask discovered form inputs',
-        this.filteredElements.map((element) => ({
-          tag: element.tagName.toLowerCase(),
-          type: element instanceof HTMLInputElement ? element.type : undefined,
-          name: element.getAttribute('name') ?? undefined,
-          id: element.id || undefined
-        }))
-      )
+
+    const snapshot = this.filteredElements.map((element) => ({
+      tag: element.tagName.toLowerCase(),
+      type: element instanceof HTMLInputElement ? element.type : undefined,
+      name: element.getAttribute('name') ?? undefined,
+      id: element.id || undefined
+    }))
+    const snapshotKey = JSON.stringify(snapshot)
+
+    if (snapshotKey !== this.lastSnapshotKey) {
+      log('Spicy Mask filtered form inputs', snapshot)
+      this.lastSnapshotKey = snapshotKey
     }
 
     if (this.enabled) {
