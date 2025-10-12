@@ -38,8 +38,10 @@ export class FormScanner {
       if (computed.display === 'none' || computed.visibility === 'hidden') {
         return false
       }
+      
       // Skip contenteditable regions that disable text input via user-modify or pointer events.
-      if (computed.webkitUserModify && computed.webkitUserModify === 'read-only') {
+      const userModify = computed?.getPropertyValue('-webkit-user-modify').trim()
+      if (userModify && userModify === 'read-only') {
         return false
       }
       return computed.pointerEvents !== 'none'
