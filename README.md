@@ -32,7 +32,7 @@ You can enable or disable the phishing and PII detection features from the exten
 ## Getting Started
 
 1. Install dependencies: `npm i`
-2. Start development build: `npm run dev`
+2. Start build: `npm run build`
 3. Open Chrome → `chrome://extensions`
 4. Enable developer mode (top-right toggle)
 5. Click **Load unpacked** and choose the generated `dist/` folder
