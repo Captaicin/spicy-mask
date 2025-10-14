@@ -11,6 +11,7 @@ import type { DetectionContext, DetectionMatch, DetectionTrigger } from '../dete
 const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
 const POPOVER_WIDTH = 220
 const HOVER_DELAY_MS = 500
+const HIDE_DELAY_MS = 300
 
 // FIXME: scanPending keep exists, instead of showing scanSummary
 interface HighlightOverlayProps {
@@ -228,12 +229,12 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const popoverRef = useRef<HTMLDivElement>(null)
   const scanButtonRef = useRef<HTMLButtonElement>(null)
   const scanPopoverRef = useRef<HTMLDivElement>(null)
-  const hoverTimerRef = useRef<number | null>(null)
+  const popoverTimerRef = useRef<number | null>(null)
   const runCounterRef = useRef(0)
   const pendingRunIdRef = useRef<number | null>(null)
   const [hovered, setHovered] = useState<ActiveSegment | null>(null)
   const [pinned, setPinned] = useState<ActiveSegment | null>(null)
-  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null)
+  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const [isScanOpen, setIsScanOpen] = useState(false)
   const [scanPending, setScanPending] = useState(false)
@@ -244,12 +245,42 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
   const active = pinned ?? hovered
 
-  const clearHoverTimer = useCallback(() => {
-    if (hoverTimerRef.current !== null) {
-      window.clearTimeout(hoverTimerRef.current)
-      hoverTimerRef.current = null
+  const clearPopoverTimer = useCallback(() => {
+    if (popoverTimerRef.current !== null) {
+      window.clearTimeout(popoverTimerRef.current)
+      popoverTimerRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    return () => clearPopoverTimer()
+  }, [clearPopoverTimer])
+
+
+  const handleHighlightEnter = useCallback((segment: HighlightSegment) => {
+    if (pinned) return;
+    
+    clearPopoverTimer();
+    
+    popoverTimerRef.current = window.setTimeout(() => {
+      setHovered({ key: segment.key, matches: segment.matches, text: segment.text })
+    }, HOVER_DELAY_MS);
+  }, [pinned, clearPopoverTimer]);
+
+  const handleInteractionLeave = useCallback(() => {
+    if (pinned) return;
+
+    clearPopoverTimer();
+
+    popoverTimerRef.current = window.setTimeout(() => {
+      setHovered(null);
+    }, HIDE_DELAY_MS);
+  }, [pinned, clearPopoverTimer]);
+
+
+  const handleInteractionEnter = useCallback(() => {
+    clearPopoverTimer();
+  }, [clearPopoverTimer]);
 
   const resetScanState = useCallback(() => {
     setScanPending(false)
@@ -279,7 +310,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       setAnchor({
         left: relativeLeft,
         top: relativeTop,
-        width: rect.width
+        width: rect.width,
+        height: rect.height
       })
     },
     []
@@ -301,12 +333,11 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       }
 
       const containerRect = containerRef.current.getBoundingClientRect()
-      const popoverHeight = popoverRef.current?.offsetHeight ?? 0
       const containerWidth = containerRect.width
 
       const rawLeft = anchor.left + anchor.width / 2 - POPOVER_WIDTH / 2
       const clampedLeft = Math.min(Math.max(0, rawLeft), Math.max(0, containerWidth - POPOVER_WIDTH))
-      const rawTop = anchor.top - popoverHeight - 8
+      const rawTop = anchor.top + anchor.height + 8
 
       setPosition({
         left: clampedLeft,
@@ -334,18 +365,14 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       if (root.contains(targetNode)) {
         return
       }
-      clearHoverTimer()
+      clearPopoverTimer()
       setPinned(null)
       setHovered(null)
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [pinned, clearHoverTimer])
-
-  useEffect(() => {
-    return () => clearHoverTimer()
-  }, [clearHoverTimer])
+  }, [pinned, clearPopoverTimer])
 
   useEffect(() => {
     if (latestTrigger !== 'manual') {
@@ -401,32 +428,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isScanOpen])
 
-  const handleMouseEnter = useCallback(
-    (segment: HighlightSegment) => {
-      clearHoverTimer()
-      hoverTimerRef.current = window.setTimeout(() => {
-        hoverTimerRef.current = null
-        setHovered({ key: segment.key, matches: segment.matches, text: segment.text })
-      }, HOVER_DELAY_MS)
-    },
-    [clearHoverTimer]
-  )
-
-  const handleMouseLeave = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
-      if (pinned) {
-        return
-      }
-      const next = event.relatedTarget as Node | null
-      if (next && next instanceof Node && containerRef.current?.contains(next)) {
-        return
-      }
-      clearHoverTimer()
-      setHovered(null)
-    },
-    [pinned, clearHoverTimer]
-  )
-
   const handleClickHighlight = useCallback(
     (segment: HighlightSegment) => {
       if (segment.matches.length === 0) {
@@ -442,13 +443,13 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         matches: segment.matches,
         text: segment.text
       }
-      clearHoverTimer()
+      clearPopoverTimer()
       setPinned(nextPinned)
       setHovered(null)
       updateAnchorPosition(segment.key)
       setIsScanOpen(false)
     },
-    [context, onFocusMatch, target, updateAnchorPosition, clearHoverTimer]
+    [context, onFocusMatch, target, updateAnchorPosition, clearPopoverTimer]
   )
 
   const handleMaskIt = useCallback(() => {
@@ -471,14 +472,14 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     } catch (err) {
       target.focus()
     }
-    clearHoverTimer()
+    clearPopoverTimer()
     setPinned(null)
     setHovered(null)
     setAnchor(null)
     setPosition(null)
     setIsScanOpen(false)
     resetScanState()
-  }, [target, clearHoverTimer, resetScanState])
+  }, [target, clearPopoverTimer, resetScanState])
 
   const handleScanButtonClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -527,6 +528,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   return (
     <div
       ref={containerRef}
+      onMouseEnter={handleInteractionEnter}
+      onMouseLeave={handleInteractionLeave}
       style={{
         position: 'absolute',
         inset: 0,
@@ -566,8 +569,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           return (
             <span
               {...commonProps}
-              onMouseEnter={() => handleMouseEnter(segment)}
-              onMouseLeave={(event) => handleMouseLeave(event)}
+              onMouseEnter={() => handleHighlightEnter(segment)}
               onClick={(event) => {
                 event.preventDefault()
                 event.stopPropagation()
@@ -740,17 +742,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
             padding: '12px',
             fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-          }}
-          onMouseLeave={(event) => {
-            if (pinned) {
-              return
-            }
-            const next = event.relatedTarget as Node | null
-            if (next && next instanceof Node && containerRef.current?.contains(next)) {
-              return
-            }
-            clearHoverTimer()
-            setHovered(null)
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
