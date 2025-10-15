@@ -20,8 +20,7 @@ interface HighlightOverlayProps {
   padding: string | number
   scrollTop: number
   scrollLeft: number
-  whiteSpace?: React.CSSProperties['whiteSpace']
-  wordBreak?: React.CSSProperties['wordBreak']
+  clientWidth: number
   target: HTMLElement
   context: DetectionContext
   onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
@@ -213,8 +212,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   padding,
   scrollTop,
   scrollLeft,
-  whiteSpace = 'pre-wrap',
-  wordBreak = 'break-word',
+  clientWidth,
   target,
   context,
   onMaskSegment,
@@ -545,10 +543,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           left: -scrollLeft,
           padding,
           font: 'inherit',
-          whiteSpace,
-          wordBreak,
           lineHeight: 'inherit',
-          color: 'transparent'
+          color: 'transparent',
+          width: clientWidth
         }}
       >
         {segments.map((segment) => {

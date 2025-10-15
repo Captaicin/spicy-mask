@@ -14,8 +14,23 @@ const joinPadding = (computed: CSSStyleDeclaration): string => {
 }
 
 const isScrollableElement = (element: HTMLElement): element is HTMLElement & { scrollTop: number; scrollLeft: number } => {
+  if (!(element instanceof HTMLElement)) {
+    return false
+  }
   const style = getComputedStyle(element)
   return /auto|scroll|overlay/i.test(style.overflow + style.overflowX + style.overflowY)
+}
+
+const getScrollableAncestors = (element: HTMLElement): HTMLElement[] => {
+  const ancestors: HTMLElement[] = []
+  let parent = element.parentElement
+  while (parent) {
+    if (isScrollableElement(parent)) {
+      ancestors.push(parent)
+    }
+    parent = parent.parentElement
+  }
+  return ancestors
 }
 
 type TargetHighlighterCallbacks = {
@@ -35,13 +50,15 @@ export class TargetHighlighter {
   private padding = '0px'
   private scrollTop = 0
   private scrollLeft = 0
+  private clientWidth = 0
+  private mutationObserver: MutationObserver | null = null
   private resizeObserver: ResizeObserver | null = null
-  private rafId: number | null = null
+  private scrollableAncestors: HTMLElement[] = []
+  private layoutRafId: number | null = null
+  private updateRafId: number | null = null
   private destroyed = false
   private currentValue = ''
   private currentMatches: DetectionMatch[] = []
-  private whiteSpace: React.CSSProperties['whiteSpace'] = 'pre-wrap'
-  private wordBreak: React.CSSProperties['wordBreak'] = 'break-word'
   private closeSignal = 0
   private hasValue = false
   private latestTrigger: DetectionTrigger = 'auto'
@@ -82,25 +99,31 @@ export class TargetHighlighter {
       return
     }
 
-    this.currentValue = value
-    this.currentMatches = matches
-    this.hasValue = typeof value === 'string' && value.length > 0
-    this.latestTrigger = meta.trigger ?? 'auto'
-
-    const hasMatches = Array.isArray(matches) && matches.length > 0
-
-    if (!hasMatches && !this.hasValue) {
-      this.container.style.display = 'none'
-      return
+    if (this.updateRafId) {
+      cancelAnimationFrame(this.updateRafId)
     }
 
-    this.container.style.display = 'block'
-    this.syncBaseStyles()
-    this.updateLayout()
-    this.scrollTop = this.target.scrollTop
-    this.scrollLeft = this.target.scrollLeft
+    this.updateRafId = requestAnimationFrame(() => {
+      this.currentValue = value
+      this.currentMatches = matches
+      this.hasValue = typeof value === 'string' && value.length > 0
+      this.latestTrigger = meta.trigger ?? 'auto'
 
-    this.render()
+      const hasMatches = Array.isArray(matches) && matches.length > 0
+
+      if (!hasMatches && !this.hasValue) {
+        this.container.style.display = 'none'
+        return
+      }
+
+      this.container.style.display = 'block'
+      this.syncBaseStyles()
+      this.updateLayout()
+      this.scrollTop = this.target.scrollTop
+      this.scrollLeft = this.target.scrollLeft
+
+      this.render()
+    })
   }
 
   setCloseSignal(signal: number): void {
@@ -123,16 +146,23 @@ export class TargetHighlighter {
     this.target.removeEventListener('focusin', this.handleFocusChange, true)
     this.target.removeEventListener('focusout', this.handleFocusChange, true)
 
+    this.mutationObserver?.disconnect()
+    this.mutationObserver = null
     this.resizeObserver?.disconnect()
     this.resizeObserver = null
 
-    window.removeEventListener('scroll', this.requestLayoutUpdate, true)
     window.removeEventListener('resize', this.requestLayoutUpdate, true)
     this.target.removeEventListener('scroll', this.handleTargetScroll, true)
+    this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.requestLayoutUpdate, true))
+    this.scrollableAncestors = []
 
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId)
-      this.rafId = null
+    if (this.layoutRafId !== null) {
+      cancelAnimationFrame(this.layoutRafId)
+      this.layoutRafId = null
+    }
+    if (this.updateRafId !== null) {
+      cancelAnimationFrame(this.updateRafId)
+      this.updateRafId = null
     }
 
     this.root.unmount()
@@ -143,17 +173,27 @@ export class TargetHighlighter {
     const computed = getComputedStyle(this.target)
     this.padding = joinPadding(computed)
 
-    const isMultiline = this.target instanceof HTMLTextAreaElement || this.target.isContentEditable
-    this.whiteSpace = isMultiline ? 'pre-wrap' : 'pre'
-    this.wordBreak = isMultiline ? 'break-word' : 'normal'
+    const style = this.inner.style
+    style.font = computed.font
+    style.letterSpacing = computed.letterSpacing
+    style.lineHeight = computed.lineHeight
+    style.whiteSpace = computed.whiteSpace
+    style.wordBreak = computed.wordBreak
+    style.wordWrap = computed.wordWrap
+    style.textAlign = computed.textAlign
+    style.textIndent = computed.textIndent
+    style.textTransform = computed.textTransform
+    style.wordSpacing = computed.wordSpacing
 
-    this.inner.style.font = computed.font
-    this.inner.style.letterSpacing = computed.letterSpacing
-    this.inner.style.lineHeight = computed.lineHeight
-    this.inner.style.whiteSpace = this.whiteSpace ?? 'pre-wrap'
-    this.inner.style.wordBreak = this.wordBreak ?? 'break-word'
-    this.inner.style.textAlign = computed.textAlign
-    this.container.style.borderRadius = computed.borderRadius
+    const containerStyle = this.container.style
+    containerStyle.borderRadius = computed.borderRadius
+    containerStyle.borderTopWidth = computed.borderTopWidth
+    containerStyle.borderRightWidth = computed.borderRightWidth
+    containerStyle.borderBottomWidth = computed.borderBottomWidth
+    containerStyle.borderLeftWidth = computed.borderLeftWidth
+    containerStyle.borderStyle = computed.borderStyle
+    containerStyle.borderColor = computed.borderColor
+    containerStyle.boxSizing = computed.boxSizing
   }
 
   private readonly handleTargetScroll = (): void => {
@@ -164,29 +204,35 @@ export class TargetHighlighter {
 
   private attachObservers(): void {
     this.resizeObserver = new ResizeObserver(() => {
-      this.syncBaseStyles()
-      this.updateLayout()
-      this.requestRender()
+      this.requestLayoutUpdate()
     })
     this.resizeObserver.observe(this.target)
 
-    window.addEventListener('scroll', this.requestLayoutUpdate, true)
+    this.mutationObserver = new MutationObserver(() => {
+      this.requestLayoutUpdate()
+    })
+    this.mutationObserver.observe(this.target, { attributes: true, attributeFilter: ['style', 'class'] })
+
     window.addEventListener('resize', this.requestLayoutUpdate, true)
 
     if (isScrollableElement(this.target)) {
       this.target.addEventListener('scroll', this.handleTargetScroll, true)
     }
+
+    this.scrollableAncestors = getScrollableAncestors(this.target)
+    this.scrollableAncestors.forEach((el) => el.addEventListener('scroll', this.requestLayoutUpdate, true))
   }
 
   private readonly requestLayoutUpdate = (): void => {
     if (this.destroyed) {
       return
     }
-    if (this.rafId !== null) {
+    if (this.layoutRafId !== null) {
       return
     }
-    this.rafId = requestAnimationFrame(() => {
-      this.rafId = null
+    this.layoutRafId = requestAnimationFrame(() => {
+      this.layoutRafId = null
+      this.syncBaseStyles()
       this.updateLayout()
       this.requestRender()
     })
@@ -209,6 +255,7 @@ export class TargetHighlighter {
     this.container.style.transform = `translate(${rect.left + scrollX}px, ${rect.top + scrollY}px)`
     this.container.style.width = `${rect.width}px`
     this.container.style.height = `${rect.height}px`
+    this.clientWidth = this.target.clientWidth
   }
 
   private render(): void {
@@ -224,8 +271,7 @@ export class TargetHighlighter {
         padding: this.padding,
         scrollTop: this.scrollTop,
         scrollLeft: this.scrollLeft,
-        whiteSpace: this.whiteSpace,
-        wordBreak: this.wordBreak,
+        clientWidth: this.clientWidth,
         target: this.target,
         context: this.context,
         onMaskSegment: this.callbacks.onMaskSegment,
