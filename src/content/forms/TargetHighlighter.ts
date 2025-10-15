@@ -60,6 +60,7 @@ export class TargetHighlighter {
   private closeSignal = 0
   private hasValue = false
   private latestTrigger: DetectionTrigger = 'auto'
+  private layoutCheckInterval: number | null = null
 
   constructor(target: HTMLElement, context: DetectionContext, callbacks: TargetHighlighterCallbacks = {}) {
     this.target = target
@@ -78,6 +79,7 @@ export class TargetHighlighter {
     this.inner.style.position = 'relative'
     this.inner.style.width = '100%'
     this.inner.style.height = '100%'
+    this.inner.style.boxSizing = 'border-box'
 
     this.container.appendChild(this.inner)
     document.body.appendChild(this.container)
@@ -149,6 +151,11 @@ export class TargetHighlighter {
     this.resizeObserver?.disconnect()
     this.resizeObserver = null
 
+    if (this.layoutCheckInterval) {
+      window.clearInterval(this.layoutCheckInterval)
+      this.layoutCheckInterval = null
+    }
+
     window.removeEventListener('resize', this.requestLayoutUpdate, true)
     this.target.removeEventListener('scroll', this.handleTargetScroll, true)
     this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.requestLayoutUpdate, true))
@@ -174,7 +181,6 @@ export class TargetHighlighter {
     const style = this.inner.style
     style.font = computed.font
     style.letterSpacing = computed.letterSpacing
-    style.lineHeight = computed.lineHeight
     style.whiteSpace = computed.whiteSpace
     style.wordBreak = computed.wordBreak
     style.wordWrap = computed.wordWrap
@@ -211,6 +217,12 @@ export class TargetHighlighter {
       this.requestLayoutUpdate()
     })
     this.mutationObserver.observe(this.target, { attributes: true, attributeFilter: ['style', 'class'] })
+
+    this.layoutCheckInterval = window.setInterval(() => {
+      if (this.target.clientWidth !== this.clientWidth) {
+        this.requestLayoutUpdate()
+      }
+    }, 100)
 
     window.addEventListener('resize', this.requestLayoutUpdate, true)
 

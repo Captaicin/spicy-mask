@@ -639,7 +639,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         inset: 0,
         pointerEvents: 'none',
         overflow: 'visible',
-        borderRadius: 'inherit'
+        borderRadius: 'inherit',
+        boxSizing: 'border-box'
       }}
     >
       <div
@@ -651,7 +652,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           font: 'inherit',
           lineHeight: 'inherit',
           color: 'transparent',
-          width: clientWidth
+          width: clientWidth,
+          boxSizing: 'border-box'
         }}
       >
         {segments.map((segment) => {
