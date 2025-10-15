@@ -74,6 +74,7 @@ export class TargetHighlighter {
     this.container.style.top = '0'
     this.container.style.left = '0'
     this.container.style.zIndex = MAX_Z_INDEX
+    this.container.style.overflow = 'hidden'
     this.container.style.display = 'none'
 
     this.inner = document.createElement('div')
