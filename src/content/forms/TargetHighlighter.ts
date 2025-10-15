@@ -3,8 +3,6 @@ import { createRoot, type Root } from 'react-dom/client'
 import TextHighlightOverlay from './TextHighlightOverlay'
 import type { DetectionContext, DetectionMatch, DetectionTrigger } from '../detection/detectors/BaseDetector'
 
-const MAX_Z_INDEX = '2147483646'
-
 const joinPadding = (computed: CSSStyleDeclaration): string => {
   const top = computed.paddingTop || '0px'
   const right = computed.paddingRight || top
@@ -73,7 +71,6 @@ export class TargetHighlighter {
     this.container.style.pointerEvents = 'none'
     this.container.style.top = '0'
     this.container.style.left = '0'
-    this.container.style.zIndex = MAX_Z_INDEX
     this.container.style.overflow = 'hidden'
     this.container.style.display = 'none'
 
@@ -187,6 +184,7 @@ export class TargetHighlighter {
     style.wordSpacing = computed.wordSpacing
 
     const containerStyle = this.container.style
+    containerStyle.zIndex = computed.zIndex
     containerStyle.borderRadius = computed.borderRadius
     containerStyle.borderTopWidth = computed.borderTopWidth
     containerStyle.borderRightWidth = computed.borderRightWidth
