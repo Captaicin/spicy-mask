@@ -35,7 +35,7 @@
 | `FormMirrorManager.ts`     | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다.                                                                                                      |
 | `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. 감지, 하이라이트, 마스킹 동작을 orchestration 하며, 수동 감지(Gemini) 결과를 캐시했다가 자동 감지 결과와 병합합니다.              |
 | `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다. |
-| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. Start Scan 도구 팝오버, 지연 상태(Scanning…), 감지 결과 요약 및 추가 Mask all 버튼을 렌더링합니다. |
+| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. Start Scan 도구 팝오버, 지연 상태(Scanning…), 감지 결과 요약 및 추가 Mask all 버튼을 렌더링합니다. 최근 개선 사항으로, 팝오버가 잘리는 문제를 해결하기 위해 React Portal을 적용하여 DOM 최상단에 렌더링되도록 수정했습니다. 또한, 사용자가 하이라이트된 텍스트에서 팝오버로 마우스를 옮길 때 팝오버가 닫히는 문제를 해결하여 사용자 경험을 개선했습니다. |
 | `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
 
 ### 필터 구현

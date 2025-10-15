@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState
 } from 'react'
+import { createPortal } from 'react-dom'
 import type { DetectionContext, DetectionMatch, DetectionTrigger } from '../detection/detectors/BaseDetector'
 
 const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
@@ -292,7 +293,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         setAnchor(null)
         return
       }
-      const containerRect = containerRef.current.getBoundingClientRect()
       const segmentEl = containerRef.current.querySelector<HTMLElement>(
         `[data-highlight-key="${segmentKey}"]`
       )
@@ -302,12 +302,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       }
 
       const rect = segmentEl.getBoundingClientRect()
-      const relativeLeft = rect.left - containerRect.left
-      const relativeTop = rect.top - containerRect.top
-
       setAnchor({
-        left: relativeLeft,
-        top: relativeTop,
+        left: rect.left,
+        top: rect.top,
         width: rect.width,
         height: rect.height
       })
@@ -320,21 +317,21 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   }, [active?.key, updateAnchorPosition, scrollTop, scrollLeft, value, matches])
 
   useLayoutEffect(() => {
-    if (!anchor || !containerRef.current) {
+    if (!anchor) {
       setPosition(null)
       return
     }
 
     const frame = requestAnimationFrame(() => {
-      if (!anchor || !containerRef.current) {
+      if (!anchor) {
         return
       }
 
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const containerWidth = containerRect.width
-
       const rawLeft = anchor.left + anchor.width / 2 - POPOVER_WIDTH / 2
-      const clampedLeft = Math.min(Math.max(0, rawLeft), Math.max(0, containerWidth - POPOVER_WIDTH))
+      const clampedLeft = Math.min(
+        Math.max(0, rawLeft),
+        Math.max(0, window.innerWidth - POPOVER_WIDTH)
+      )
       const rawTop = anchor.top + anchor.height + 8
 
       setPosition({
@@ -523,7 +520,116 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     return null
   }
 
+  const popover = (
+    active && position ? (
+        <div
+          ref={popoverRef}
+          onMouseEnter={handleInteractionEnter}
+          onMouseLeave={handleInteractionLeave}
+          style={{
+            position: 'fixed',
+            left: `${position.left}px`,
+            top: `${position.top}px`,
+            width: `${POPOVER_WIDTH}px`,
+            pointerEvents: 'auto',
+            zIndex: 2147483647,
+            background: '#0f172a',
+            color: '#f8fafc',
+            borderRadius: '8px',
+            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
+            padding: '12px',
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600 }}>Detected Text</div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                closePopover()
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#f8fafc',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <div
+            style={{
+              fontSize: '12px',
+              lineHeight: 1.4,
+              background: '#1e293b',
+              padding: '8px',
+              borderRadius: '6px',
+              marginBottom: '10px',
+              wordBreak: 'break-word'
+            }}
+          >
+            {active.matches.map((match, idx) => (
+              <div key={`${match.detectorId}-${match.startIndex}-${idx}`} style={{ marginBottom: '4px' }}>
+                <div style={{ fontWeight: 600 }}>{match.match}</div>
+                <div style={{ opacity: 0.7 }}>Detector: {match.detectorId}</div>
+                {match.entityType ? (
+                  <div style={{ opacity: 0.7 }}>Type: {match.entityType}</div>
+                ) : null}
+                {match.reason ? (
+                  <div style={{ opacity: 0.7 }}>Reason: {match.reason}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                handleMaskIt()
+              }}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#f97316',
+                color: '#0f172a',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Mask it
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                handleMaskAll()
+              }}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid rgba(248, 250, 252, 0.4)',
+                background: 'transparent',
+                color: '#f8fafc',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Mask all
+            </button>
+          </div>
+        </div>
+      ) : null
+  );
+
   return (
+    <>
     <div
       ref={containerRef}
       onMouseEnter={handleInteractionEnter}
@@ -722,111 +828,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         ) : null}
         </>
       ) : null}
-
-      {active && position ? (
-        <div
-          ref={popoverRef}
-          style={{
-            position: 'absolute',
-            left: `${position.left}px`,
-            top: `${position.top}px`,
-            width: `${POPOVER_WIDTH}px`,
-            pointerEvents: 'auto',
-            zIndex: 10,
-            background: '#0f172a',
-            color: '#f8fafc',
-            borderRadius: '8px',
-            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
-            padding: '12px',
-            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600 }}>Detected Text</div>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                closePopover()
-              }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#f8fafc',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              ×
-            </button>
-          </div>
-          <div
-            style={{
-              fontSize: '12px',
-              lineHeight: 1.4,
-              background: '#1e293b',
-              padding: '8px',
-              borderRadius: '6px',
-              marginBottom: '10px',
-              wordBreak: 'break-word'
-            }}
-          >
-            {active.matches.map((match, idx) => (
-              <div key={`${match.detectorId}-${match.startIndex}-${idx}`} style={{ marginBottom: '4px' }}>
-                <div style={{ fontWeight: 600 }}>{match.match}</div>
-                <div style={{ opacity: 0.7 }}>Detector: {match.detectorId}</div>
-                {match.entityType ? (
-                  <div style={{ opacity: 0.7 }}>Type: {match.entityType}</div>
-                ) : null}
-                {match.reason ? (
-                  <div style={{ opacity: 0.7 }}>Reason: {match.reason}</div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                handleMaskIt()
-              }}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                background: '#f97316',
-                color: '#0f172a',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Mask it
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                handleMaskAll()
-              }}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid rgba(248, 250, 252, 0.4)',
-                background: 'transparent',
-                color: '#f8fafc',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Mask all
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
+    {createPortal(popover, document.body)}
+    </>
   )
 }
 
