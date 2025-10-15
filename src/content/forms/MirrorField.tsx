@@ -32,7 +32,7 @@ const getElementValue = (element: FormElement): string => {
   }
 
   if (isContentEditableElement(element)) {
-    return element.textContent ?? ''
+    return element.innerText ?? ''
   }
 
   return ''
@@ -308,7 +308,9 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [value, matches])
 
   useEffect(() => {
-    highlighterRef.current?.setCloseSignal(closeSignal)
+    if (highlighterRef.current && highlighterRef.current instanceof TargetHighlighter) {
+      highlighterRef.current.setCloseSignal(closeSignal)
+    }
   }, [closeSignal])
 
   const label = useMemo(() => deriveLabel(target, `Field #${index + 1}`), [target, index])

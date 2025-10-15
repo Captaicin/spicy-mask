@@ -255,6 +255,23 @@ export class TargetHighlighter {
     this.container.style.width = `${rect.width}px`
     this.container.style.height = `${rect.height}px`
     this.clientWidth = this.target.clientWidth
+
+    const scrollParent = this.scrollableAncestors[0]
+    if (scrollParent) {
+      const parentRect = scrollParent.getBoundingClientRect()
+      const clipTop = Math.max(0, parentRect.top - rect.top)
+      const clipLeft = Math.max(0, parentRect.left - rect.left)
+      const clipBottom = Math.min(rect.height, parentRect.bottom - rect.top)
+      const clipRight = Math.min(rect.width, parentRect.right - rect.left)
+
+      if (clipBottom <= clipTop || clipRight <= clipLeft) {
+        this.container.style.clipPath = 'inset(100%)'
+      } else {
+        this.container.style.clipPath = `inset(${clipTop}px ${rect.width - clipRight}px ${rect.height - clipBottom}px ${clipLeft}px)`
+      }
+    } else {
+      this.container.style.clipPath = 'none'
+    }
   }
 
   private render(): void {
