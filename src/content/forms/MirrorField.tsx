@@ -103,6 +103,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   )
 
   const isMountedRef = useRef(true)
+  const valueRef = useRef(value)
+  useEffect(() => {
+    valueRef.current = value
+  }, [value])
   const detectionSequenceRef = useRef(0)
   const manualMatchesRef = useRef<DetectionMatch[]>([])
 
@@ -193,7 +197,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         return
       }
 
-      const { masked, changed } = maskValueWithMatches(value, targetMatches)
+      const { masked, changed } = maskValueWithMatches(valueRef.current, targetMatches)
       if (!changed) {
         warn('Mask request produced no change', {
           filterId,
@@ -219,7 +223,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       setCloseSignal((token) => token + 1)
       void runDetection(masked, { trigger: 'auto' })
     },
-    [filterId, index, runDetection, target, value]
+    [filterId, index, runDetection, target]
   )
 
   const handleMaskSegment = useCallback(
@@ -237,8 +241,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   )
 
   const handleRequestScan = useCallback(() => {
-    void runDetection(value, { trigger: 'manual' })
-  }, [runDetection, value])
+    void runDetection(valueRef.current, { trigger: 'manual' })
+  }, [runDetection])
 
   useEffect(() => {
     if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
@@ -263,8 +267,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [runDetection, value])
 
   useEffect(() => {
-    if (isContentEditableElement(target)) {
-      // For contenteditable, MutationObserver is more reliable.
+    // This hook is for standard form elements, not contenteditable.
+    if (!isInputElement(target) && !isTextareaElement(target) && !isSelectElement(target)) {
       return
     }
 
@@ -330,13 +334,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     return () => observer.disconnect()
   }, [target])
 
-  useEffect(() => {
-    if (!highlighterRef.current) {
-      return
-    }
 
-    highlighterRef.current.update(value, matches)
-  }, [value, matches])
 
   useEffect(() => {
     if (highlighterRef.current && highlighterRef.current instanceof TargetHighlighter) {

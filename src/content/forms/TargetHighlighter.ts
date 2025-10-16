@@ -49,6 +49,7 @@ export class TargetHighlighter {
   private scrollTop = 0
   private scrollLeft = 0
   private clientWidth = 0
+  private clientHeight = 0
   private mutationObserver: MutationObserver | null = null
   private resizeObserver: ResizeObserver | null = null
   private scrollableAncestors: HTMLElement[] = []
@@ -60,6 +61,7 @@ export class TargetHighlighter {
   private closeSignal = 0
   private hasValue = false
   private latestTrigger: DetectionTrigger = 'auto'
+  private lastPiiDetails: { pii: DetectionMatch; rects: DOMRect[] }[] = []
   private layoutCheckInterval: number | null = null
 
   constructor(target: HTMLElement, context: DetectionContext, callbacks: TargetHighlighterCallbacks = {}) {
@@ -119,9 +121,36 @@ export class TargetHighlighter {
       this.container.style.display = 'block'
       this.syncBaseStyles()
       this.updateLayout()
-      this.scrollTop = this.target.scrollTop || 0
-      this.scrollLeft = this.target.scrollLeft || 0
 
+      const isStandardInput =
+        this.target.tagName.toLowerCase() === 'input' || this.target.tagName.toLowerCase() === 'textarea'
+
+      const highlightRects: DOMRect[] = []
+      const piiDetails = []
+
+      for (const pii of this.currentMatches) {
+        let rects: DOMRect[] = []
+        if (isStandardInput) {
+          rects = this._getRectsForInput(pii)
+        } else {
+          // This logic is from the user's reference code to handle newline differences in contenteditable
+          const textBeforePii = this.currentValue.substring(0, pii.startIndex)
+          const newlineCount = (textBeforePii.match(/\n/g) || []).length
+          const correctedStartIndex = pii.startIndex - newlineCount
+          const correctedEndIndex = pii.endIndex - newlineCount
+
+          const ranges = this._findTextRanges(correctedStartIndex, correctedEndIndex)
+          ranges.forEach((range) => {
+            rects.push(...Array.from(range.getClientRects()))
+          })
+        }
+
+        if (rects.length > 0) {
+          piiDetails.push({ pii, rects })
+          highlightRects.push(...rects)
+        }
+      }
+      this.lastPiiDetails = piiDetails
       this.render()
     })
   }
@@ -193,6 +222,7 @@ export class TargetHighlighter {
 
     const style = this.inner.style
     style.font = computed.font
+    style.lineHeight = computed.lineHeight
     style.letterSpacing = computed.letterSpacing
     style.whiteSpace = computed.whiteSpace
     style.wordBreak = computed.wordBreak
@@ -201,6 +231,9 @@ export class TargetHighlighter {
     style.textIndent = computed.textIndent
     style.textTransform = computed.textTransform
     style.wordSpacing = computed.wordSpacing
+    style.boxSizing = computed.boxSizing
+    style.direction = computed.direction
+    style.tabSize = computed.tabSize
 
     const containerStyle = this.container.style
     containerStyle.zIndex = String(newZIndex)
@@ -232,7 +265,7 @@ export class TargetHighlighter {
     this.mutationObserver.observe(this.target, { attributes: true, attributeFilter: ['style', 'class'] })
 
     this.layoutCheckInterval = window.setInterval(() => {
-      if (this.target.clientWidth !== this.clientWidth) {
+      if (this.target.clientWidth !== this.clientWidth || this.target.clientHeight !== this.clientHeight) {
         this.requestLayoutUpdate()
       }
     }, 100)
@@ -280,6 +313,7 @@ export class TargetHighlighter {
     this.container.style.width = `${rect.width}px`
     this.container.style.height = `${rect.height}px`
     this.clientWidth = this.target.clientWidth
+    this.clientHeight = this.target.clientHeight
 
     const scrollParent = this.scrollableAncestors[0]
     if (scrollParent) {
@@ -307,12 +341,8 @@ export class TargetHighlighter {
 
     this.root.render(
       React.createElement(TextHighlightOverlay, {
-        value: this.currentValue,
-        matches: this.currentMatches,
-        padding: this.padding,
-        scrollTop: this.scrollTop,
-        scrollLeft: this.scrollLeft,
-        clientWidth: this.clientWidth,
+        piiDetails: this.lastPiiDetails,
+        containerRect: this.container.getBoundingClientRect(),
         target: this.target,
         context: this.context,
         onMaskSegment: this.callbacks.onMaskSegment,
@@ -321,7 +351,8 @@ export class TargetHighlighter {
         onRequestScan: this.callbacks.onRequestScan,
         closeSignal: this.closeSignal,
         showScanButton,
-        latestTrigger: this.latestTrigger
+        latestTrigger: this.latestTrigger,
+        allMatches: this.currentMatches
       })
     )
   }
@@ -336,13 +367,226 @@ export class TargetHighlighter {
     this.requestRender()
   }
 
-  private isTargetFocused(): boolean {
-    if (document.activeElement === this.target) {
-      return true
+    private isTargetFocused(): boolean {
+
+      if (document.activeElement === this.target) {
+
+        return true
+
+      }
+
+      if (!this.target.shadowRoot) {
+
+        return false
+
+      }
+
+      return this.target.shadowRoot.contains(document.activeElement)
+
     }
-    if (!this.target.shadowRoot) {
-      return false
+
+  
+
+    private _findTextRanges(start: number, end: number): Range[] {
+
+      const ranges = []
+
+      const walker = document.createTreeWalker(this.target, NodeFilter.SHOW_TEXT)
+
+      let charCount = 0
+
+      let foundStart = false
+
+      let startNode: Node | null = null
+
+      let startOffset = 0
+
+      let endNode: Node | null = null
+
+      let endOffset = 0
+
+  
+
+      let currentNode
+
+      while ((currentNode = walker.nextNode())) {
+
+        const nodeLength = currentNode.textContent?.length ?? 0
+
+        const prevCharCount = charCount
+
+        charCount += nodeLength
+
+  
+
+        if (!foundStart && start < charCount) {
+
+          startNode = currentNode
+
+          startOffset = start - prevCharCount
+
+          foundStart = true
+
+        }
+
+  
+
+        if (foundStart && end <= charCount) {
+
+          endNode = currentNode
+
+          endOffset = end - prevCharCount
+
+          const range = document.createRange()
+
+          range.setStart(startNode as Node, startOffset)
+
+          range.setEnd(endNode as Node, endOffset)
+
+          ranges.push(range)
+
+          return ranges
+
+        }
+
+      }
+
+  
+
+      if (foundStart) {
+
+        const range = document.createRange()
+
+        range.setStart(startNode as Node, startOffset)
+
+        const lastNode = walker.currentNode ?? this.target.lastChild
+
+        if (lastNode) {
+
+          range.setEnd(lastNode, lastNode.textContent?.length ?? 0)
+
+          ranges.push(range)
+
+        }
+
+      }
+
+  
+
+      return ranges
+
     }
-    return this.target.shadowRoot.contains(document.activeElement)
+
+  
+
+    private _getRectsForInput(pii: { startIndex: number; endIndex: number }): DOMRect[] {
+
+      const input = this.target as HTMLInputElement | HTMLTextAreaElement
+
+      const { value, scrollLeft, scrollTop } = input
+
+      const { startIndex, endIndex } = pii
+
+  
+
+      const twin = document.createElement('div')
+
+      const styles = window.getComputedStyle(input)
+
+  
+
+      const twinStyles: Partial<CSSStyleDeclaration> = {
+
+        position: 'absolute',
+
+        visibility: 'hidden',
+
+        pointerEvents: 'none',
+
+        top: `${input.offsetTop}px`,
+
+        left: `${input.offsetLeft}px`,
+
+        width: `${input.clientWidth}px`,
+
+        height: `${input.clientHeight}px`,
+
+        overflow: 'auto',
+
+        whiteSpace: styles.whiteSpace,
+
+        wordWrap: styles.wordWrap,
+
+        font: styles.font,
+
+        padding: styles.padding,
+
+        border: styles.border,
+
+        letterSpacing: styles.letterSpacing,
+
+        textTransform: styles.textTransform,
+
+        lineHeight: styles.lineHeight,
+
+        boxSizing: styles.boxSizing,
+
+        direction: styles.direction,
+
+        tabSize: styles.tabSize
+
+      }
+
+      Object.assign(twin.style, twinStyles)
+
+  
+
+      const textBefore = value.substring(0, startIndex)
+
+      const piiText = value.substring(startIndex, endIndex)
+
+      const textAfter = value.substring(endIndex)
+
+  
+
+      const textNodeBefore = document.createTextNode(textBefore)
+
+      const span = document.createElement('span')
+
+      span.textContent = piiText
+
+      const textNodeAfter = document.createTextNode(textAfter)
+
+  
+
+      twin.appendChild(textNodeBefore)
+
+      twin.appendChild(span)
+
+      twin.appendChild(textNodeAfter)
+
+  
+
+      document.body.appendChild(twin)
+
+      twin.scrollLeft = scrollLeft
+
+      twin.scrollTop = scrollTop
+
+  
+
+      const piiRects = Array.from(span.getClientRects())
+
+  
+
+      document.body.removeChild(twin)
+
+  
+
+      return piiRects
+
+    }
+
   }
-}
+
+  

@@ -14,14 +14,15 @@ const POPOVER_WIDTH = 220
 const HOVER_DELAY_MS = 500
 const HIDE_DELAY_MS = 300
 
-// FIXME: scanPending keep exists, instead of showing scanSummary
+interface PiiDetail {
+  pii: DetectionMatch
+  rects: DOMRect[]
+}
+
 interface HighlightOverlayProps {
-  value: string
-  matches: DetectionMatch[]
-  padding: string | number
-  scrollTop: number
-  scrollLeft: number
-  clientWidth: number
+  piiDetails: PiiDetail[]
+  containerRect: DOMRect
+  allMatches: DetectionMatch[]
   target: HTMLElement
   context: DetectionContext
   onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
@@ -33,88 +34,9 @@ interface HighlightOverlayProps {
   latestTrigger: DetectionTrigger
 }
 
-interface HighlightSegment {
-  key: string
-  text: string
-  start: number
-  end: number
-  matches: DetectionMatch[]
-}
-
-interface ActiveSegment {
-  key: string
-  matches: DetectionMatch[]
-  text: string
-}
-
-const clampIndices = (valueLength: number, match: DetectionMatch): DetectionMatch | null => {
-  if (match.endIndex <= match.startIndex) {
-    return null
-  }
-  const start = Math.max(0, Math.min(valueLength, match.startIndex))
-  const end = Math.max(start, Math.min(valueLength, match.endIndex))
-  if (start === end) {
-    return null
-  }
-  return {
-    ...match,
-    startIndex: start,
-    endIndex: end
-  }
-}
-
-const buildSegments = (value: string, matches: DetectionMatch[]): HighlightSegment[] => {
-  if (!value) {
-    return []
-  }
-
-  const validMatches = matches
-    .map((match) => clampIndices(value.length, match))
-    .filter((match): match is DetectionMatch => Boolean(match))
-
-  if (validMatches.length === 0) {
-    return [
-      {
-        key: 'whole-0',
-        text: value,
-        start: 0,
-        end: value.length,
-        matches: []
-      }
-    ]
-  }
-
-  const boundaries = new Set<number>([0, value.length])
-  for (const match of validMatches) {
-    boundaries.add(match.startIndex)
-    boundaries.add(match.endIndex)
-  }
-
-  const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b)
-  const segments: HighlightSegment[] = []
-
-  for (let i = 0; i < sortedBoundaries.length - 1; i += 1) {
-    const start = sortedBoundaries[i]
-    const end = sortedBoundaries[i + 1]
-    if (end <= start) {
-      continue
-    }
-
-    const slice = value.slice(start, end)
-    const overlappingMatches = validMatches.filter(
-      (match) => match.startIndex < end && match.endIndex > start
-    )
-
-    segments.push({
-      key: `${start}-${end}-${overlappingMatches.length}`,
-      text: slice || '\u200b',
-      start,
-      end,
-      matches: overlappingMatches
-    })
-  }
-
-  return segments
+interface ActivePii {
+  pii: DetectionMatch
+  anchorRect: DOMRect
 }
 
 const summarizeMatches = (matches: DetectionMatch[]): { phone: number; email: number } => {
@@ -137,83 +59,13 @@ const focusMatch = (target: HTMLElement, match: DetectionMatch) => {
 
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
     target.setSelectionRange(match.startIndex, match.endIndex)
-    return
   }
-
-  if (!target.isContentEditable) {
-    return
-  }
-
-  const doc = target.ownerDocument
-  if (!doc) {
-    return
-  }
-  const range = doc.createRange()
-  const selection = doc.getSelection()
-  if (!selection) {
-    return
-  }
-
-  const walker = doc.createTreeWalker(target, NodeFilter.SHOW_TEXT)
-  let current = walker.nextNode()
-  let offset = 0
-  let startNode: Text | null = null
-  let startOffset = 0
-  let endNode: Text | null = null
-  let endOffset = 0
-
-  while (current) {
-    if (!(current instanceof Text)) {
-      current = walker.nextNode()
-      continue
-    }
-
-    const length = current.length
-    const nodeStart = offset
-    const nodeEnd = offset + length
-
-    if (!startNode && match.startIndex >= nodeStart && match.startIndex <= nodeEnd) {
-      startNode = current
-      startOffset = match.startIndex - nodeStart
-    }
-
-    if (!endNode && match.endIndex >= nodeStart && match.endIndex <= nodeEnd) {
-      endNode = current
-      endOffset = Math.max(0, match.endIndex - nodeStart)
-      break
-    }
-
-    offset += length
-    current = walker.nextNode()
-  }
-
-  if (!startNode) {
-    startNode = target.firstChild as Text | null
-    startOffset = 0
-  }
-
-  if (!endNode) {
-    endNode = target.lastChild as Text | null
-    endOffset = endNode instanceof Text ? endNode.length : 0
-  }
-
-  if (!startNode || !endNode) {
-    return
-  }
-
-  range.setStart(startNode, Math.max(0, startOffset))
-  range.setEnd(endNode, Math.max(0, endOffset))
-  selection.removeAllRanges()
-  selection.addRange(range)
 }
 
 const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
-  value,
-  matches,
-  padding,
-  scrollTop,
-  scrollLeft,
-  clientWidth,
+  piiDetails,
+  containerRect,
+  allMatches,
   target,
   context,
   onMaskSegment,
@@ -224,25 +76,22 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   showScanButton,
   latestTrigger
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const scanButtonRef = useRef<HTMLButtonElement>(null)
   const scanPopoverRef = useRef<HTMLDivElement>(null)
   const popoverTimerRef = useRef<number | null>(null)
   const runCounterRef = useRef(0)
   const pendingRunIdRef = useRef<number | null>(null)
-  const [hovered, setHovered] = useState<ActiveSegment | null>(null)
-  const [pinned, setPinned] = useState<ActiveSegment | null>(null)
-  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
+
+  const [hovered, setHovered] = useState<ActivePii | null>(null)
+  const [pinned, setPinned] = useState<ActivePii | null>(null)
+  const [popoverPosition, setPopoverPosition] = useState<{ left: number; top: number } | null>(null)
+
   const [isScanOpen, setIsScanOpen] = useState(false)
   const [scanPending, setScanPending] = useState(false)
   const [scanSummary, setScanSummary] = useState<{ phone: number; email: number } | null>(null)
 
-  const segments = useMemo(() => buildSegments(value, matches), [value, matches])
-  const hasMatches = matches.length > 0
-
-  const active = pinned ?? hovered
+  const activePii = pinned ?? hovered
 
   const clearPopoverTimer = useCallback(() => {
     if (popoverTimerRef.current !== null) {
@@ -251,215 +100,54 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     }
   }, [])
 
-  useEffect(() => {
-    return () => clearPopoverTimer()
-  }, [clearPopoverTimer])
-
-
-  const handleHighlightEnter = useCallback((segment: HighlightSegment) => {
-    if (pinned) return;
-    
-    clearPopoverTimer();
-    
-    popoverTimerRef.current = window.setTimeout(() => {
-      setHovered({ key: segment.key, matches: segment.matches, text: segment.text })
-    }, HOVER_DELAY_MS);
-  }, [pinned, clearPopoverTimer]);
+  const handleHighlightEnter = useCallback(
+    (pii: DetectionMatch, rect: DOMRect) => {
+      if (pinned) return
+      clearPopoverTimer()
+      popoverTimerRef.current = window.setTimeout(() => {
+        setHovered({ pii, anchorRect: rect })
+      }, HOVER_DELAY_MS)
+    },
+    [pinned, clearPopoverTimer]
+  )
 
   const handleInteractionLeave = useCallback(() => {
-    if (pinned) return;
-
-    clearPopoverTimer();
-
+    if (pinned) return
+    clearPopoverTimer()
     popoverTimerRef.current = window.setTimeout(() => {
-      setHovered(null);
-    }, HIDE_DELAY_MS);
-  }, [pinned, clearPopoverTimer]);
-
-
-  const handleInteractionEnter = useCallback(() => {
-    clearPopoverTimer();
-  }, [clearPopoverTimer]);
-
-  const resetScanState = useCallback(() => {
-    setScanPending(false)
-    setScanSummary(null)
-    pendingRunIdRef.current = null
-  }, [])
-
-  const updateAnchorPosition = useCallback(
-    (segmentKey: string | null) => {
-      if (!segmentKey || !containerRef.current) {
-        setAnchor(null)
-        return
-      }
-      const segmentEl = containerRef.current.querySelector<HTMLElement>(
-        `[data-highlight-key="${segmentKey}"]`
-      )
-      if (!segmentEl) {
-        setAnchor(null)
-        return
-      }
-
-      const rect = segmentEl.getBoundingClientRect()
-      setAnchor({
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height
-      })
-    },
-    []
-  )
-
-  useLayoutEffect(() => {
-    updateAnchorPosition(active?.key ?? null)
-  }, [active?.key, updateAnchorPosition, scrollTop, scrollLeft, value, matches])
-
-  useLayoutEffect(() => {
-    if (!anchor) {
-      setPosition(null)
-      return
-    }
-
-    const frame = requestAnimationFrame(() => {
-      if (!anchor) {
-        return
-      }
-
-      const rawLeft = anchor.left + anchor.width / 2 - POPOVER_WIDTH / 2
-      const clampedLeft = Math.min(
-        Math.max(0, rawLeft),
-        Math.max(0, window.innerWidth - POPOVER_WIDTH)
-      )
-      const rawTop = anchor.top + anchor.height + 8
-
-      setPosition({
-        left: clampedLeft,
-        top: rawTop
-      })
-    })
-
-    return () => cancelAnimationFrame(frame)
-  }, [anchor, active, matches, value])
-
-  useEffect(() => {
-    if (!pinned) {
-      return
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current) {
-        return
-      }
-      const root = containerRef.current
-      const targetNode = event.target
-      if (!(targetNode instanceof Node)) {
-        return
-      }
-      if (root.contains(targetNode)) {
-        return
-      }
-      clearPopoverTimer()
-      setPinned(null)
       setHovered(null)
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, HIDE_DELAY_MS)
   }, [pinned, clearPopoverTimer])
 
-  useEffect(() => {
-    if (latestTrigger !== 'manual') {
-      return
-    }
-
-    const hasPendingRun = pendingRunIdRef.current !== null
-    if (!scanPending && !hasPendingRun) {
-      return
-    }
-
-    if (hasPendingRun) {
-      setScanSummary(summarizeMatches(matches))
-      pendingRunIdRef.current = null
-    }
-
-    setScanPending(false)
-  }, [latestTrigger, matches, scanPending])
-
-  const hasValue = showScanButton
-
-  useEffect(() => {
-    if (!hasValue && isScanOpen) {
-      setIsScanOpen(false)
-    }
-  }, [hasValue, isScanOpen])
-
-  useEffect(() => {
-    if (!isScanOpen) {
-      resetScanState()
-    }
-  }, [isScanOpen, resetScanState])
-
-  useEffect(() => {
-    if (!isScanOpen) {
-      return
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const targetNode = event.target
-      if (!(targetNode instanceof Node)) {
-        return
-      }
-      const button = scanButtonRef.current
-      const popover = scanPopoverRef.current
-      if (button?.contains(targetNode) || popover?.contains(targetNode)) {
-        return
-      }
-      setIsScanOpen(false)
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isScanOpen])
+  const handleInteractionEnter = useCallback(() => {
+    clearPopoverTimer()
+  }, [clearPopoverTimer])
 
   const handleClickHighlight = useCallback(
-    (segment: HighlightSegment) => {
-      if (segment.matches.length === 0) {
-        return
-      }
+    (pii: DetectionMatch, rect: DOMRect) => {
+      focusMatch(target, pii)
+      onFocusMatch?.({ match: pii, context })
 
-      const primaryMatch = segment.matches[0]
-      focusMatch(target, primaryMatch)
-      onFocusMatch?.({ match: primaryMatch, context })
-
-      const nextPinned: ActiveSegment = {
-        key: segment.key,
-        matches: segment.matches,
-        text: segment.text
-      }
       clearPopoverTimer()
-      setPinned(nextPinned)
+      setPinned({ pii, anchorRect: rect })
       setHovered(null)
-      updateAnchorPosition(segment.key)
       setIsScanOpen(false)
     },
-    [context, onFocusMatch, target, updateAnchorPosition, clearPopoverTimer]
+    [context, onFocusMatch, target, clearPopoverTimer]
   )
 
-  const handleMaskIt = useCallback(() => {
-    if (!active) {
+  useLayoutEffect(() => {
+    if (!activePii) {
+      setPopoverPosition(null)
       return
     }
-    onMaskSegment?.({ matches: active.matches, context })
-  }, [active, context, onMaskSegment])
+    const { anchorRect } = activePii
+    const rawLeft = anchorRect.left + anchorRect.width / 2 - POPOVER_WIDTH / 2
+    const clampedLeft = Math.min(Math.max(0, rawLeft), Math.max(0, window.innerWidth - POPOVER_WIDTH))
+    const rawTop = anchorRect.bottom + 8
 
-  const handleMaskAll = useCallback(() => {
-    if (matches.length === 0) {
-      return
-    }
-    onMaskAll?.({ matches, context })
-  }, [matches, context, onMaskAll])
+    setPopoverPosition({ left: clampedLeft, top: rawTop })
+  }, [activePii])
 
   const closePopover = useCallback(() => {
     try {
@@ -470,29 +158,40 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     clearPopoverTimer()
     setPinned(null)
     setHovered(null)
-    setAnchor(null)
-    setPosition(null)
     setIsScanOpen(false)
-    resetScanState()
-  }, [target, clearPopoverTimer, resetScanState])
+  }, [target, clearPopoverTimer])
+
+  useEffect(() => {
+    if (closeSignal !== closeSignalRef.current) {
+      closeSignalRef.current = closeSignal
+      closePopover()
+    }
+  }, [closeSignal, closePopover])
+
+  const handleMaskIt = useCallback(() => {
+    if (!activePii) return
+    onMaskSegment?.({ matches: [activePii.pii], context })
+  }, [activePii, context, onMaskSegment])
+
+  const handleMaskAll = useCallback(() => {
+    if (allMatches.length === 0) return
+    onMaskAll?.({ matches: allMatches, context })
+  }, [allMatches, context, onMaskAll])
+
+  // ... (Scan button logic is mostly unchanged) ...
+  const resetScanState = useCallback(() => {
+    setScanPending(false)
+    setScanSummary(null)
+    pendingRunIdRef.current = null
+  }, [])
 
   const handleScanButtonClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault()
       event.stopPropagation()
-      setIsScanOpen((open) => {
-        const next = !open
-        if (!next) {
-          resetScanState()
-        } else {
-          setScanPending(false)
-          setScanSummary(null)
-          pendingRunIdRef.current = null
-        }
-        return next
-      })
+      setIsScanOpen((open) => !open)
     },
-    [resetScanState]
+    []
   )
 
   const handleStartScan = useCallback(() => {
@@ -504,197 +203,106 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   }, [onRequestScan])
 
   const closeSignalRef = useRef(closeSignal)
+
   useEffect(() => {
-    if (closeSignal !== closeSignalRef.current) {
-      closeSignalRef.current = closeSignal
-      closePopover()
-      setIsScanOpen(false)
+    if (latestTrigger !== 'manual') return
+    const hasPendingRun = pendingRunIdRef.current !== null
+    if (!scanPending && !hasPendingRun) return
+    if (hasPendingRun) {
+      setScanSummary(summarizeMatches(allMatches))
+      pendingRunIdRef.current = null
     }
-  }, [closeSignal, closePopover])
+    setScanPending(false)
+  }, [latestTrigger, allMatches, scanPending])
 
-  const showScanIcon = showScanButton
-  const scanPopoverOpen = isScanOpen
-  const showMaskAllButton = Boolean(scanSummary) && !scanPending && hasMatches
+  useEffect(() => {
+    if (!isScanOpen) {
+      resetScanState()
+    }
+  }, [isScanOpen, resetScanState])
 
-  if (segments.length === 0 && !showScanIcon) {
-    return null
-  }
+  const showMaskAllButton = Boolean(scanSummary) && !scanPending && allMatches.length > 0
 
-  const popover = (
-    active && position ? (
+  const popover = createPortal(
+    activePii && popoverPosition ? (
+      <div
+        ref={popoverRef}
+        onMouseEnter={handleInteractionEnter}
+        onMouseLeave={handleInteractionLeave}
+        style={{
+          position: 'fixed',
+          left: `${popoverPosition.left}px`,
+          top: `${popoverPosition.top}px`,
+          width: `${POPOVER_WIDTH}px`,
+          pointerEvents: 'auto',
+          zIndex: 2147483647,
+          background: '#0f172a',
+          color: '#f8fafc',
+          borderRadius: '8px',
+          boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
+          padding: '12px',
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+        }}
+      >
+        <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Detected Text</div>
         <div
-          ref={popoverRef}
-          onMouseEnter={handleInteractionEnter}
-          onMouseLeave={handleInteractionLeave}
           style={{
-            position: 'fixed',
-            left: `${position.left}px`,
-            top: `${position.top}px`,
-            width: `${POPOVER_WIDTH}px`,
-            pointerEvents: 'auto',
-            zIndex: 2147483647,
-            background: '#0f172a',
-            color: '#f8fafc',
-            borderRadius: '8px',
-            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
-            padding: '12px',
-            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            fontSize: '12px',
+            lineHeight: 1.4,
+            background: '#1e293b',
+            padding: '8px',
+            borderRadius: '6px',
+            marginBottom: '10px',
+            wordBreak: 'break-word'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600 }}>Detected Text</div>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                closePopover()
-              }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#f8fafc',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              ×
-            </button>
-          </div>
-          <div
-            style={{
-              fontSize: '12px',
-              lineHeight: 1.4,
-              background: '#1e293b',
-              padding: '8px',
-              borderRadius: '6px',
-              marginBottom: '10px',
-              wordBreak: 'break-word'
-            }}
-          >
-            {active.matches.map((match, idx) => (
-              <div key={`${match.detectorId}-${match.startIndex}-${idx}`} style={{ marginBottom: '4px' }}>
-                <div style={{ fontWeight: 600 }}>{match.match}</div>
-                <div style={{ opacity: 0.7 }}>Detector: {match.detectorId}</div>
-                {match.entityType ? (
-                  <div style={{ opacity: 0.7 }}>Type: {match.entityType}</div>
-                ) : null}
-                {match.reason ? (
-                  <div style={{ opacity: 0.7 }}>Reason: {match.reason}</div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                handleMaskIt()
-              }}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                background: '#f97316',
-                color: '#0f172a',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Mask it
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                handleMaskAll()
-              }}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid rgba(248, 250, 252, 0.4)',
-                background: 'transparent',
-                color: '#f8fafc',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Mask all
-            </button>
-          </div>
+          <div style={{ fontWeight: 600 }}>{activePii.pii.match}</div>
+          <div style={{ opacity: 0.7 }}>Detector: {activePii.pii.detectorId}</div>
         </div>
-      ) : null
-  );
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button type="button" onClick={handleMaskIt} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#f97316', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Mask it</button>
+          <button type="button" onClick={handleMaskAll} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
+        </div>
+      </div>
+    ) : null,
+    document.body
+  )
 
   return (
     <>
-    <div
-      ref={containerRef}
-      onMouseEnter={handleInteractionEnter}
-      onMouseLeave={handleInteractionLeave}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: 'none',
-        overflow: 'visible',
-        borderRadius: 'inherit',
-        boxSizing: 'border-box'
-      }}
-    >
       <div
+        onMouseEnter={handleInteractionEnter}
+        onMouseLeave={handleInteractionLeave}
         style={{
           position: 'absolute',
-          top: -scrollTop,
-          left: -scrollLeft,
-          padding,
-          font: 'inherit',
-          lineHeight: 'inherit',
-          color: 'transparent',
-          width: clientWidth,
-          boxSizing: 'border-box'
+          inset: 0,
+          pointerEvents: 'none',
+          overflow: 'hidden'
         }}
       >
-        {segments.map((segment) => {
-          const isHighlight = segment.matches.length > 0
-          const commonProps = {
-            key: segment.key,
-            'data-highlight-key': segment.key
-          }
-
-          if (!isHighlight) {
-            return (
-              <span {...commonProps} style={{ pointerEvents: 'none' }}>
-                {segment.text}
-              </span>
-            )
-          }
-
-          return (
-            <span
-              {...commonProps}
-              onMouseEnter={() => handleHighlightEnter(segment)}
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                handleClickHighlight(segment)
-              }}
+        {piiDetails.map(({ pii, rects }) =>
+          rects.map((rect, index) => (
+            <div
+              key={`${pii.startIndex}-${pii.endIndex}-${index}`}
+              onMouseEnter={() => handleHighlightEnter(pii, rect)}
+              onClick={() => handleClickHighlight(pii, rect)}
               style={{
+                position: 'absolute',
+                top: `${rect.top - containerRect.top}px`,
+                left: `${rect.left - containerRect.left}px`,
+                width: `${rect.width}px`,
+                height: `${rect.height}px`,
                 backgroundColor: HIGHLIGHT_COLOR,
-                color: 'transparent',
-                borderRadius: '4px',
+                borderRadius: '3px',
                 pointerEvents: 'auto',
                 cursor: 'pointer'
               }}
-            >
-              {segment.text}
-            </span>
-          )
-        })}
+            />
+          ))
+        )}
       </div>
 
-      {showScanIcon ? (
+      {showScanButton ? (
         <>
           <button
             ref={scanButtonRef}
@@ -723,7 +331,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           >
             ✦
           </button>
-          {scanPopoverOpen ? (
+          {isScanOpen ? (
             <div
               ref={scanPopoverRef}
               style={{
@@ -740,98 +348,31 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                 fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                 zIndex: 2147483646
               }}
-              onClick={(event) => {
-                event.stopPropagation()
-              }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600 }}>Scan Tools</div>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setIsScanOpen(false)
-                  resetScanState()
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#f8fafc',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                ×
-              </button>
+              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '10px' }}>Scan Tools</div>
+              <button type="button" onClick={handleStartScan} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: 'none', background: '#22c55e', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Start Scan</button>
+              <div style={{ marginTop: '12px', fontSize: '12px', color: '#cbd5f5' }}>
+                {scanPending && !scanSummary ? (
+                  <span>Scanning…</span>
+                ) : scanSummary ? (
+                  <>
+                    <span>Results</span>
+                    <span>• phone_number: {scanSummary.phone}</span>
+                    <span>• email: {scanSummary.email}</span>
+                  </>
+                ) : (
+                  <span>Run Start Scan to scan PII with Gemini Nano</span>
+                )}
+              </div>
+              {showMaskAllButton ? (
+                <button type="button" onClick={handleMaskAll} style={{ width: '100%', marginTop: '10px', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
+              ) : null}
             </div>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                handleStartScan()
-              }}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '6px',
-                border: 'none',
-                background: '#22c55e',
-                color: '#0f172a',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Start Scan
-            </button>
-            <div
-              style={{
-                marginTop: '12px',
-                fontSize: '12px',
-                color: '#cbd5f5',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px'
-              }}
-            >
-              {scanPending && !scanSummary ? (
-                <span>Scanning…</span>
-              ) : scanSummary ? (
-                <>
-                  <span>Results</span>
-                  <span>• phone_number: {scanSummary.phone}</span>
-                  <span>• email: {scanSummary.email}</span>
-                </>
-              ) : (
-                <span>Run Start Scan to scan PII with Gemini Nano</span>
-              )}
-            </div>
-            {showMaskAllButton ? (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  handleMaskAll()
-                }}
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(248, 250, 252, 0.4)',
-                  background: 'transparent',
-                  color: '#f8fafc',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Mask all
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
         </>
       ) : null}
-    </div>
-    {createPortal(popover, document.body)}
+      {popover}
     </>
   )
 }
