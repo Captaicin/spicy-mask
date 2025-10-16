@@ -187,6 +187,7 @@ export class TargetHighlighter {
     }
 
     window.removeEventListener('resize', this.requestLayoutUpdate, true)
+    this.target.removeEventListener('scroll', this.handleAncestorScroll, true)
     this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.handleAncestorScroll, true))
     this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.requestLayoutUpdate, true))
     this.scrollableAncestors = []
@@ -273,6 +274,10 @@ export class TargetHighlighter {
 
     this.scrollableAncestors = getScrollableAncestors(this.target)
     this.scrollableAncestors.forEach((el) => el.addEventListener('scroll', this.handleAncestorScroll, true))
+
+    if (isScrollableElement(this.target)) {
+      this.target.addEventListener('scroll', this.handleAncestorScroll, true)
+    }
 
     this.scrollableAncestors = getScrollableAncestors(this.target)
     this.scrollableAncestors.forEach((el) => el.addEventListener('scroll', this.requestLayoutUpdate, true))
