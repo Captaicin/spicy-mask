@@ -263,9 +263,14 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [runDetection, value])
 
   useEffect(() => {
+    if (isContentEditableElement(target)) {
+      // For contenteditable, MutationObserver is more reliable.
+      return
+    }
+
     const handleInput = () => {
       const nextValue = getElementValue(target)
-      if (isInputElement(target) || isTextareaElement(target) || isContentEditableElement(target)) {
+      if (isInputElement(target) || isTextareaElement(target)) {
         log('MirrorField input', {
           filterId,
           index,
@@ -282,6 +287,32 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       target.removeEventListener('input', handleInput)
       target.removeEventListener('change', handleInput)
     }
+  }, [target, filterId, index])
+
+  useEffect(() => {
+    if (!isContentEditableElement(target)) {
+      return
+    }
+
+    const handleMutation = () => {
+      const nextValue = getElementValue(target)
+      log('MirrorField contenteditable mutation', {
+        filterId,
+        index,
+        value: nextValue
+      })
+      setValue(nextValue)
+    }
+
+    const observer = new MutationObserver(handleMutation)
+
+    observer.observe(target, {
+      characterData: true,
+      childList: true,
+      subtree: true
+    })
+
+    return () => observer.disconnect()
   }, [target, filterId, index])
 
   useEffect(() => {
