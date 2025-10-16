@@ -107,6 +107,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   useEffect(() => {
     valueRef.current = value
   }, [value])
+  const matchesRef = useRef(matches)
+  useEffect(() => {
+    matchesRef.current = matches
+  }, [matches])
   const detectionSequenceRef = useRef(0)
   const manualMatchesRef = useRef<DetectionMatch[]>([])
 
@@ -245,8 +249,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [runDetection])
 
   const handleContentScroll = useCallback(() => {
-    void runDetection(valueRef.current, { trigger: 'auto' })
-  }, [runDetection])
+    highlighterRef.current?.update(valueRef.current, matchesRef.current)
+  }, [])
 
   useEffect(() => {
     if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
