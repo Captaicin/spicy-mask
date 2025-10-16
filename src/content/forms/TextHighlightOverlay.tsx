@@ -738,7 +738,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                 boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
                 pointerEvents: 'auto',
                 fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                zIndex: 12
+                zIndex: 2147483646
               }}
               onClick={(event) => {
                 event.stopPropagation()

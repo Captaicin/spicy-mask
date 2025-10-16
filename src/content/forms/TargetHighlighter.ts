@@ -119,8 +119,8 @@ export class TargetHighlighter {
       this.container.style.display = 'block'
       this.syncBaseStyles()
       this.updateLayout()
-      this.scrollTop = this.target.scrollTop
-      this.scrollLeft = this.target.scrollLeft
+      this.scrollTop = this.target.scrollTop || 0
+      this.scrollLeft = this.target.scrollLeft || 0
 
       this.render()
     })
@@ -176,6 +176,19 @@ export class TargetHighlighter {
 
   private syncBaseStyles(): void {
     const computed = getComputedStyle(this.target)
+    const targetZIndex = computed.zIndex
+    let newZIndex: number
+    if (targetZIndex === 'auto') {
+      newZIndex = 1
+    } else {
+      const parsedZIndex = parseInt(targetZIndex, 10)
+      if (!isNaN(parsedZIndex)) {
+        newZIndex = parsedZIndex + 1
+      } else {
+        newZIndex = 1
+      }
+    }
+
     this.padding = joinPadding(computed)
 
     const style = this.inner.style
@@ -190,7 +203,7 @@ export class TargetHighlighter {
     style.wordSpacing = computed.wordSpacing
 
     const containerStyle = this.container.style
-    containerStyle.zIndex = computed.zIndex
+    containerStyle.zIndex = String(newZIndex)
     containerStyle.borderRadius = computed.borderRadius
     containerStyle.borderTopWidth = computed.borderTopWidth
     containerStyle.borderRightWidth = computed.borderRightWidth
@@ -202,8 +215,8 @@ export class TargetHighlighter {
   }
 
   private readonly handleTargetScroll = (): void => {
-    this.scrollTop = this.target.scrollTop
-    this.scrollLeft = this.target.scrollLeft
+    this.scrollTop = this.target.scrollTop || 0
+    this.scrollLeft = this.target.scrollLeft || 0
     this.requestRender()
   }
 
