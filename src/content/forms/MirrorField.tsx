@@ -244,6 +244,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     void runDetection(valueRef.current, { trigger: 'manual' })
   }, [runDetection])
 
+  const handleContentScroll = useCallback(() => {
+    void runDetection(valueRef.current, { trigger: 'auto' })
+  }, [runDetection])
+
   useEffect(() => {
     if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
       return
@@ -252,7 +256,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     const highlighter = new TargetHighlighter(target, detectionContext, {
       onMaskSegment: handleMaskSegment,
       onMaskAll: handleMaskAll,
-      onRequestScan: handleRequestScan
+      onRequestScan: handleRequestScan,
+      onContentScroll: handleContentScroll
     })
     highlighterRef.current = highlighter
 
@@ -260,7 +265,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       highlighter.destroy()
       highlighterRef.current = null
     }
-  }, [target, detectionContext, handleMaskSegment, handleMaskAll, handleRequestScan])
+  }, [target, detectionContext, handleMaskSegment, handleMaskAll, handleRequestScan, handleContentScroll])
 
   useEffect(() => {
     void runDetection(value, { trigger: 'auto' })

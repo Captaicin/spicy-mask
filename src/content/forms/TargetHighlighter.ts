@@ -36,6 +36,7 @@ type TargetHighlighterCallbacks = {
   onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
   onRequestScan?: () => void
+  onContentScroll?: () => void
 }
 
 export class TargetHighlighter {
@@ -186,7 +187,7 @@ export class TargetHighlighter {
     }
 
     window.removeEventListener('resize', this.requestLayoutUpdate, true)
-    this.target.removeEventListener('scroll', this.handleTargetScroll, true)
+    this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.handleAncestorScroll, true))
     this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.requestLayoutUpdate, true))
     this.scrollableAncestors = []
 
@@ -247,10 +248,8 @@ export class TargetHighlighter {
     containerStyle.boxSizing = computed.boxSizing
   }
 
-  private readonly handleTargetScroll = (): void => {
-    this.scrollTop = this.target.scrollTop || 0
-    this.scrollLeft = this.target.scrollLeft || 0
-    this.requestRender()
+  private readonly handleAncestorScroll = (): void => {
+    this.callbacks.onContentScroll?.()
   }
 
   private attachObservers(): void {
@@ -272,9 +271,8 @@ export class TargetHighlighter {
 
     window.addEventListener('resize', this.requestLayoutUpdate, true)
 
-    if (isScrollableElement(this.target)) {
-      this.target.addEventListener('scroll', this.handleTargetScroll, true)
-    }
+    this.scrollableAncestors = getScrollableAncestors(this.target)
+    this.scrollableAncestors.forEach((el) => el.addEventListener('scroll', this.handleAncestorScroll, true))
 
     this.scrollableAncestors = getScrollableAncestors(this.target)
     this.scrollableAncestors.forEach((el) => el.addEventListener('scroll', this.requestLayoutUpdate, true))
