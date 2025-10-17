@@ -32,7 +32,7 @@ const getElementValue = (element: FormElement): string => {
   }
 
   if (isContentEditableElement(element)) {
-    return element.textContent ?? ''
+    return element.innerText ?? ''
   }
 
   return ''
@@ -103,6 +103,14 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   )
 
   const isMountedRef = useRef(true)
+  const valueRef = useRef(value)
+  useEffect(() => {
+    valueRef.current = value
+  }, [value])
+  const matchesRef = useRef(matches)
+  useEffect(() => {
+    matchesRef.current = matches
+  }, [matches])
   const detectionSequenceRef = useRef(0)
   const manualMatchesRef = useRef<DetectionMatch[]>([])
 
@@ -193,7 +201,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         return
       }
 
-      const { masked, changed } = maskValueWithMatches(value, targetMatches)
+      const { masked, changed } = maskValueWithMatches(valueRef.current, targetMatches)
       if (!changed) {
         warn('Mask request produced no change', {
           filterId,
@@ -219,7 +227,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       setCloseSignal((token) => token + 1)
       void runDetection(masked, { trigger: 'auto' })
     },
-    [filterId, index, runDetection, target, value]
+    [filterId, index, runDetection, target]
   )
 
   const handleMaskSegment = useCallback(
@@ -237,8 +245,12 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   )
 
   const handleRequestScan = useCallback(() => {
-    void runDetection(value, { trigger: 'manual' })
-  }, [runDetection, value])
+    void runDetection(valueRef.current, { trigger: 'manual' })
+  }, [runDetection])
+
+  const handleContentScroll = useCallback(() => {
+    highlighterRef.current?.update(valueRef.current, matchesRef.current)
+  }, [])
 
   useEffect(() => {
     if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
@@ -248,7 +260,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     const highlighter = new TargetHighlighter(target, detectionContext, {
       onMaskSegment: handleMaskSegment,
       onMaskAll: handleMaskAll,
-      onRequestScan: handleRequestScan
+      onRequestScan: handleRequestScan,
+      onContentScroll: handleContentScroll
     })
     highlighterRef.current = highlighter
 
@@ -256,16 +269,21 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       highlighter.destroy()
       highlighterRef.current = null
     }
-  }, [target, detectionContext, handleMaskSegment, handleMaskAll, handleRequestScan])
+  }, [target, detectionContext, handleMaskSegment, handleMaskAll, handleRequestScan, handleContentScroll])
 
   useEffect(() => {
     void runDetection(value, { trigger: 'auto' })
   }, [runDetection, value])
 
   useEffect(() => {
+    // This hook is for standard form elements, not contenteditable.
+    if (!isInputElement(target) && !isTextareaElement(target) && !isSelectElement(target)) {
+      return
+    }
+
     const handleInput = () => {
       const nextValue = getElementValue(target)
-      if (isInputElement(target) || isTextareaElement(target) || isContentEditableElement(target)) {
+      if (isInputElement(target) || isTextareaElement(target)) {
         log('MirrorField input', {
           filterId,
           index,
@@ -285,6 +303,32 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [target, filterId, index])
 
   useEffect(() => {
+    if (!isContentEditableElement(target)) {
+      return
+    }
+
+    const handleMutation = () => {
+      const nextValue = getElementValue(target)
+      log('MirrorField contenteditable mutation', {
+        filterId,
+        index,
+        value: nextValue
+      })
+      setValue(nextValue)
+    }
+
+    const observer = new MutationObserver(handleMutation)
+
+    observer.observe(target, {
+      characterData: true,
+      childList: true,
+      subtree: true
+    })
+
+    return () => observer.disconnect()
+  }, [target, filterId, index])
+
+  useEffect(() => {
     if (!isSelectElement(target)) {
       return
     }
@@ -299,16 +343,12 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     return () => observer.disconnect()
   }, [target])
 
+
+
   useEffect(() => {
-    if (!highlighterRef.current) {
-      return
+    if (highlighterRef.current && highlighterRef.current instanceof TargetHighlighter) {
+      highlighterRef.current.setCloseSignal(closeSignal)
     }
-
-    highlighterRef.current.update(value, matches)
-  }, [value, matches])
-
-  useEffect(() => {
-    highlighterRef.current?.setCloseSignal(closeSignal)
   }, [closeSignal])
 
   const label = useMemo(() => deriveLabel(target, `Field #${index + 1}`), [target, index])
