@@ -1,3 +1,16 @@
+// Global types for browser-provided APIs
+declare global {
+  interface LanguageModel {
+    prompt(
+      prompt: string,
+      options: { responseConstraint: object },
+    ): Promise<string>;
+  }
+  const LanguageModel: {
+    create(): Promise<LanguageModel>;
+  };
+}
+
 export type DetectorSource = 'regex' | 'gemini';
 
 export type RegexEntityType = 
@@ -34,15 +47,13 @@ export type DetectionMatch = RegexDetectionMatch | GeminiDetectionMatch;
 
 export interface GeminiApiResult {
   value: string
-  startIndex: number
-  endIndex: number
-  entityType: GeminiEntityType
-  reason?: string
+  type: string
+  reason: string
 }
 
 export type Msg = 
   | { type: 'PING' } 
-  | { type: 'RUN_GEMINI_SCAN'; payload: { text: string } };
+  | { type: 'RUN_GEMINI_PII_ANALYSIS'; payload: { text: string } };
 
 export type MsgResponse =
   | { ok: true; data?: unknown | GeminiApiResult[] }
