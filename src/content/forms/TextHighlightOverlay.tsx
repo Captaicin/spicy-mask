@@ -7,7 +7,9 @@ import React, {
   useState
 } from 'react'
 import { createPortal } from 'react-dom'
-import type { DetectionContext, DetectionMatch, DetectionTrigger } from '../detection/detectors/BaseDetector'
+import type { DetectionContext, DetectionTrigger } from '../detection/detectors/BaseDetector'
+import type { DetectionMatch } from '../../shared/types'
+
 
 const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
 const POPOVER_WIDTH = 220

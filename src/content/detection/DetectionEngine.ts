@@ -1,5 +1,7 @@
 import { error, log } from '../../shared/logger'
-import { BaseDetector, type DetectionInput, type DetectionMatch } from './detectors/BaseDetector'
+import { BaseDetector, type DetectionInput } from './detectors/BaseDetector'
+import type { DetectionMatch } from '../../shared/types'
+
 
 export class DetectionEngine {
   private detectors: BaseDetector[]
@@ -23,43 +25,61 @@ export class DetectionEngine {
   async run(input: DetectionInput): Promise<DetectionMatch[]> {
     const enrichedInput: DetectionInput = {
       ...input,
-      trigger: input.trigger ?? 'auto'
+      trigger: input.trigger ?? 'auto',
     }
 
-    const aggregated: DetectionMatch[] = []
-    const seen = new Set<string>()
-
+    // 1. Aggregate all matches from all detectors
+    let allMatches: DetectionMatch[] = []
     for (const detector of this.detectors) {
       try {
         const matches = await Promise.resolve(detector.detect(enrichedInput))
-        if (matches.length === 0) {
-          continue
-        }
-
-        for (const match of matches) {
-          const key = `${detector.id}:${match.startIndex}:${match.endIndex}:${match.match}:$${match.entityType ?? 'unknown'}`
-          if (seen.has(key)) {
-            continue
-          }
-          seen.add(key)
-          aggregated.push({ ...match, detectorId: match.detectorId ?? detector.id })
-        }
+        // Ensure detectorId is present on each match
+        const matchesWithId = matches.map((m) => ({ ...m, detectorId: m.detectorId ?? detector.id }))
+        allMatches.push(...matchesWithId)
       } catch (err) {
         error('Detector execution failed', {
           detectorId: detector.id,
-          message: err instanceof Error ? err.message : String(err)
+          message: err instanceof Error ? err.message : String(err),
         })
       }
     }
 
-    if (aggregated.length > 0) {
+    if (allMatches.length === 0) {
+      return []
+    }
+
+    // 2. Sort all matches by priority (descending)
+    allMatches.sort((a, b) => b.priority - a.priority)
+
+    // 3. Resolve overlaps
+    const finalMatches: DetectionMatch[] = []
+    const isOverlapping = (matchA: DetectionMatch, matchB: DetectionMatch): boolean => {
+      return (
+        Math.max(matchA.startIndex, matchB.startIndex) <
+        Math.min(matchA.endIndex, matchB.endIndex)
+      )
+    }
+
+    for (const currentMatch of allMatches) {
+      // Check if the current match overlaps with any of the already accepted final matches
+      const hasOverlap = finalMatches.some((finalMatch) => isOverlapping(currentMatch, finalMatch))
+
+      if (!hasOverlap) {
+        finalMatches.push(currentMatch)
+      }
+    }
+
+    // 4. Sort by startIndex (ascending)
+    finalMatches.sort((a, b) => a.startIndex - b.startIndex)
+
+    if (finalMatches.length > 0) {
       log('DetectionEngine matches', {
         filterId: enrichedInput.context.filterId,
         fieldIndex: enrichedInput.context.fieldIndex,
-        matches: aggregated
+        matches: finalMatches,
       })
     }
 
-    return aggregated
+    return finalMatches
   }
 }

@@ -1,7 +1,9 @@
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import TextHighlightOverlay from './TextHighlightOverlay'
-import type { DetectionContext, DetectionMatch, DetectionTrigger } from '../detection/detectors/BaseDetector'
+import type { DetectionContext, DetectionTrigger } from '../detection/detectors/BaseDetector'
+import type { DetectionMatch } from '../../shared/types'
+
 
 const joinPadding = (computed: CSSStyleDeclaration): string => {
   const top = computed.paddingTop || '0px'

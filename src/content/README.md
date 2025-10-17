@@ -48,14 +48,15 @@
 
 민감 텍스트 감지를 모듈화합니다.
 
-| 경로                          | 설명                                                                                                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DetectionEngine.ts`          | 등록된 `BaseDetector` 인스턴스를 순회해 감지 결과를 집계합니다. 비동기 감지를 지원하고, 감지 트리거에 따라 결과를 dedupe 합니다.                        |
-| `detectors/BaseDetector.ts`   | 감지기 기본 클래스와 입력/출력 타입 정의. `DetectionMatch`에 `entityType`과 `reason` 필드를 포함합니다.                                                 |
-| `detectors/RegexDetector.ts`  | 정규식 기반 데모용 고정 토큰(`asdfas`) 감지기. 구성 시 커스텀 패턴을 받을 수 있으며 감지 사유(`reason`)를 제공합니다.                                   |
-| `detectors/GeminiDetector.ts` | 수동(Start Scan) 실행 시에만 백그라운드 `geminiScan`을 호출하며, 데모용 고정 토큰(`qwer`: 이메일, `1234`: 전화번호) 탐지 결과와 감지 사유를 반환합니다. |
-| `detectors/index.ts`          | 감지기 컬렉션을 내보내고 기본 감지기 세트를 구성합니다.                                                                                                 |
-| `index.ts`                    | `DetectionEngine` 싱글턴을 생성하고 재노출합니다.                                                                                                       |
+| 경로 | 설명 |
+| --- | --- |
+| `DetectionEngine.ts` | 등록된 모든 `BaseDetector`에서 감지 결과를 수집하고, `priority`를 기반으로 겹치는(overlap) 결과를 처리합니다. 가장 높은 우선순위의 감지 결과만 남겨 중복을 제거합니다. |
+| `detectors/BaseDetector.ts` | 모든 감지기의 기본 클래스. `detect` 메서드와 공통 입력 타입(`DetectionInput`)을 정의합니다. |
+| `detectors/RegexDetector.ts` | 다중 정규식 패턴을 사용해 PII(개인 식별 정보)를 탐지하는 엔진입니다. 자체적으로 패턴 우선순위에 따라 결과를 처리하고, 신용카드 번호의 경우 Luhn 알고리즘으로 유효성을 검증하여 정확도를 높입니다. |
+| `detectors/pii/piiPatterns.ts` | `RegexDetector`가 사용하는 PII 정규식 패턴, 우선순위, 유효성 검증 로직(Luhn 알고리즘)을 정의합니다. |
+| `detectors/GeminiDetector.ts` | 수동(Start Scan) 실행 시 백그라운드 `geminiScan`을 호출하여 텍스트의 문맥을 분석하고 PII를 탐지합니다. |
+| `detectors/index.ts` | `DetectionEngine`에 사용될 기본 감지기(`RegexDetector`, `GeminiDetector`)를 구성하고 내보냅니다. |
+| `index.ts` | `DetectionEngine` 싱글턴 인스턴스를 생성하고 내보냅니다. |
 
 ## 마스킹(`masking/`)
 
