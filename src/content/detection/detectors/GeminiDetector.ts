@@ -1,5 +1,6 @@
 import { log } from '../../../shared/logger'
-import { BaseDetector, type DetectionInput, type DetectionMatch } from './BaseDetector'
+import { BaseDetector, type DetectionInput } from './BaseDetector'
+import type { DetectionMatch } from '../../../shared/types'
 import { requestGeminiScan } from './geminiClient'
 
 export class GeminiDetector extends BaseDetector {
@@ -35,6 +36,8 @@ export class GeminiDetector extends BaseDetector {
 
     return matches.map((match) => ({
       detectorId: this.id,
+      source: 'gemini',
+      priority: 10,
       match: match.value,
       startIndex: match.startIndex,
       endIndex: match.endIndex,

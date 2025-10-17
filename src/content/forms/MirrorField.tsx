@@ -4,9 +4,9 @@ import type { FormElement } from './FormFilter'
 import { detectionEngine } from '../detection'
 import {
   type DetectionContext,
-  type DetectionMatch,
   type DetectionTrigger
 } from '../detection/detectors/BaseDetector'
+import type { DetectionMatch } from '../../shared/types'
 import { TargetHighlighter } from './TargetHighlighter'
 import { maskValueWithMatches } from '../masking'
 

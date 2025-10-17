@@ -1,23 +1,23 @@
 import { sendMessage } from '../../../shared/messaging'
 import { error } from '../../../shared/logger'
-import type { GeminiEntityType, GeminiScanMatch, MsgResponse } from '../../../shared/types'
+import type { GeminiEntityType, GeminiApiResult, MsgResponse } from '../../../shared/types'
 
-export type GeminiClientMatch = GeminiScanMatch
+export type GeminiClientMatch = GeminiApiResult
 
 export const requestGeminiScan = async (text: string): Promise<GeminiClientMatch[]> => {
   try {
-    const response: MsgResponse = await sendMessage({ type: 'RUN_GEMINI_SCAN', text })
+    const response: MsgResponse = await sendMessage({ type: 'RUN_GEMINI_SCAN', payload: { text } })
     if (!response.ok) {
-      error('Gemini scan failed', { message: response.error })
+      error('Gemini scan failed', { message: (response as any).error })
       return []
     }
 
-    const payload = response.data as { matches?: GeminiClientMatch[] } | undefined
-    if (!payload || !Array.isArray(payload.matches)) {
+    const payload = response.data as GeminiApiResult[] | undefined
+    if (!Array.isArray(payload)) {
       return []
     }
 
-    return payload.matches
+    return payload
       .map((match) => normalizeMatch(match))
       .filter((match): match is GeminiClientMatch => Boolean(match))
   } catch (err) {
@@ -53,5 +53,5 @@ const normalizeMatch = (match: unknown): GeminiClientMatch | null => {
 }
 
 const isValidEntityType = (type: unknown): type is GeminiEntityType => {
-  return type === 'phone_number' || type === 'email'
+  return type === 'phone_number' || type === 'email' || type === 'contextual_pii'
 }

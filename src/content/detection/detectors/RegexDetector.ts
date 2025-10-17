@@ -1,5 +1,6 @@
 import { log } from '../../../shared/logger'
-import { BaseDetector, type DetectionInput, type DetectionMatch } from './BaseDetector'
+import { BaseDetector, type DetectionInput } from './BaseDetector'
+import type { DetectionMatch } from '../../../shared/types'
 
 export interface RegexDetectorOptions {
   pattern?: RegExp
@@ -36,10 +37,12 @@ export class RegexDetector extends BaseDetector {
 
       const match: DetectionMatch = {
         detectorId: this.id,
+        source: "regex",
         match: matchText,
         startIndex,
         endIndex,
-        entityType: 'pattern_match',
+        entityType: 'email',
+        priority: 100,
         reason: `Matched pattern ${this.pattern.toString()}`
       }
 
