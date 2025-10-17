@@ -69,15 +69,15 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
         - `index.ts`: Barrel exports for filter implementations.
         - `AllFormFilter.ts`, `TextFormFilter.ts`, `MockFormFilter.ts`: Built-in filter strategies.
     - `detection/`
-      - `DetectionEngine.ts`: Async detector runner with dedupe logic.
+      - `DetectionEngine.ts`: Runs all detectors and resolves overlaps using a priority-based system.
       - `index.ts`: Detection engine entry/export.
       - `detectors/`
-        - `BaseDetector.ts`: Shared detector contracts (`DetectionInput/Match`).
-        - `GeminiDetector.ts`: Manual trigger detector that calls background scan.
-        - `RegexDetector.ts`: Pattern-based detector emitting entity type & reason.
-        - `MockDetector.ts`: (Referenced via barrel) demo detector; excluded from default build if not imported.
+        - `BaseDetector.ts`: Shared detector contracts.
+        - `GeminiDetector.ts`: AI-based detector that calls the background service.
+        - `RegexDetector.ts`: High-precision PII engine using multiple prioritized patterns.
         - `geminiClient.ts`: Messaging client for `RUN_GEMINI_SCAN`.
-        - `index.ts`: Registers default detectors (Mock, Regex, Gemini).
+        - `index.ts`: Registers default detectors.
+        - `pii/piiPatterns.ts`: Defines PII patterns, priorities, and validation logic for the `RegexDetector`.
     - `masking/`
       - `masker.ts`: Masking utility that applies detection ranges to text.
       - `index.ts`: Barrel export.
@@ -92,7 +92,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
     - `Popup.tsx`: Popup UI messaging `PING` to background.
     - `README.md`: Module notes.
   - `shared/`
-    - `types.ts`: Shared message/detection types (`GeminiEntityType`, `GeminiScanMatch`).
+    - `types.ts`: Shared types for messaging (`Msg`) and detection (`DetectionMatch`).
     - `messaging.ts`: Promise-based Chrome messaging helpers.
     - `logger.ts`: Prefixed logging utilities.
     - `storage.ts`: Chrome storage sync helper & constants.
