@@ -54,7 +54,8 @@
 | `detectors/BaseDetector.ts` | 모든 감지기의 기본 클래스. `detect` 메서드와 공통 입력 타입(`DetectionInput`)을 정의합니다. |
 | `detectors/RegexDetector.ts` | 다중 정규식 패턴을 사용해 PII(개인 식별 정보)를 탐지하는 엔진입니다. 자체적으로 패턴 우선순위에 따라 결과를 처리하고, 신용카드 번호의 경우 Luhn 알고리즘으로 유효성을 검증하여 정확도를 높입니다. |
 | `detectors/pii/piiPatterns.ts` | `RegexDetector`가 사용하는 PII 정규식 패턴, 우선순위, 유효성 검증 로직(Luhn 알고리즘)을 정의합니다. |
-| `detectors/GeminiDetector.ts` | 수동(Start Scan) 실행 시 백그라운드 `geminiScan`을 호출하여 텍스트의 문맥을 분석하고 PII를 탐지합니다. |
+| `detectors/GeminiDetector.ts` | 백그라운드 Gemini 서비스를 호출하여 텍스트 내의 문맥적 PII(이름, 주소 등)를 탐지합니다. 서비스로부터 PII 후보값을 받은 후, "findall" 로직을 통해 텍스트 내 모든 일치 항목의 위치를 찾아 최종 `DetectionMatch` 객체를 생성합니다. |
+| `detectors/geminiClient.ts` | `GeminiDetector`와 `background` 서비스 간의 통신을 담당하는 얇은 클라이언트입니다. `sendMessage` API 호출을 추상화하고, `RUN_GEMINI_PII_ANALYSIS` 메시지를 전송합니다. |
 | `detectors/index.ts` | `DetectionEngine`에 사용될 기본 감지기(`RegexDetector`, `GeminiDetector`)를 구성하고 내보냅니다. |
 | `index.ts` | `DetectionEngine` 싱글턴 인스턴스를 생성하고 내보냅니다. |
 
@@ -74,4 +75,4 @@
 - 새로운 감지기를 추가하려면 `BaseDetector`를 상속하고 `defaultDetectors` 배열에 추가하세요.
 - 필터 전략 교체는 `filterConfig.ts`의 `injectedFilter`를 다른 구현으로 바꾸면 됩니다.
 - UI 동작 디버깅은 `log` 출력과 `TargetHighlighter` 팝오버 상태를 활용하세요.
-- Start Scan 시 3초 지연(백그라운드 스텁)을 고려해 비동기 흐름을 검증하세요. 마스킹 후에도 Gemini 감지 결과가 유지되는지 확인하는 스냅샷 테스트를 권장합니다.
+- `GeminiDetector`는 실제 `LanguageModel` API를 호출하므로, 비동기 흐름과 최종 반환되는 `DetectionMatch` 객체의 구조를 검증하는 테스트를 권장합니다.

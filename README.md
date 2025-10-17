@@ -26,7 +26,7 @@ You can enable or disable the phishing and PII detection features from the exten
 ## Technology Stack
 
 - **Platform:** Google Chrome Extension V3
-- **AI:** Gemini Nano (Chrome Built-in API `chrome.ai.createTextSession()`)
+- **AI:** Gemini Nano (via the `LanguageModel` API)
 - **Languages:** JavaScript, HTML, CSS
 
 ## Getting Started
@@ -51,7 +51,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
 - `src/`: Application source code
   - `background/`
     - `index.ts`: Service worker entrypoint wiring `onMessage` handlers.
-    - `geminiScan.ts`: Async stubbed scan that simulates a 3s delay and returns entity matches.
+    - `geminiService.ts`: Acts as a thin proxy to the `LanguageModel` API for PII detection.
     - `README.md`: Module documentation.
   - `content/`
     - `index.ts`: Content-script bootstrap (init/destroy hooks).
@@ -73,9 +73,9 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
       - `index.ts`: Detection engine entry/export.
       - `detectors/`
         - `BaseDetector.ts`: Shared detector contracts.
-        - `GeminiDetector.ts`: AI-based detector that calls the background service.
+        - `GeminiDetector.ts`: Receives raw PII suggestions from the background service and finds all match indices in the text.
         - `RegexDetector.ts`: High-precision PII engine using multiple prioritized patterns.
-        - `geminiClient.ts`: Messaging client for `RUN_GEMINI_SCAN`.
+        - `geminiClient.ts`: Thin messaging client for `RUN_GEMINI_PII_ANALYSIS`.
         - `index.ts`: Registers default detectors.
         - `pii/piiPatterns.ts`: Defines PII patterns, priorities, and validation logic for the `RegexDetector`.
     - `masking/`
