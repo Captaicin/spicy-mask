@@ -55,18 +55,20 @@ async function executeLLMPrompt(
 export async function runPiiAnalysis(
   text: string,
 ): Promise<GeminiApiResult[]> {
-  const prompt = `Role: You are a privacy expert. Your task is to identify PII that is difficult to detect with simple patterns.
-Your primary focus is on types like:
-- Full Names
-- Physical Addresses
-- Potential Passwords or secret keys
+
+  const preprocessedText = text
+    .trim()
+    .replace(/(\r\n|\n){3,}/g, '\n\n')
+    .replace(/([^\n])(\r\n|\n)([^\n])/g, '$1 $3');
+
+  const prompt = `Role: You are a privacy expert. Your task is to identify PII that is **difficult to detect with simple patterns such as regex**.
 
 Analyze the user's input for PII. For each piece of PII found, provide its type (e.g., "Full Name"), the exact value, and a brief reason for your decision.
 If you find multiple instances of a valid PII type (e.g., two different passwords), return an object for each. Do not summarize.
 Respond with a JSON object conforming to the schema.
 ---
 SELECTED TEXT:
-"${text}"`
+"${preprocessedText}"`
 
   const result = await executeLLMPrompt(prompt, PII_ANALYSIS_SCHEMA)
 
