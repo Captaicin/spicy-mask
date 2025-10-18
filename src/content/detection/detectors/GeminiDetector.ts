@@ -1,7 +1,8 @@
 import { log } from '../../../shared/logger'
 import { BaseDetector, type DetectionInput } from './BaseDetector'
-import type { DetectionMatch } from '../../../shared/types'
-import { requestGeminiScan } from './geminiClient'
+import type { DetectionMatch, GeminiApiResult } from '../../../shared/types'
+import { requestGeminiPiiAnalysis } from './geminiClient'
+
 
 export class GeminiDetector extends BaseDetector {
   constructor() {
@@ -9,7 +10,7 @@ export class GeminiDetector extends BaseDetector {
       id: 'gemini-detector',
       label: 'Gemini detector',
       description:
-        'Calls the background Gemini scan stub to detect structured secrets such as phone numbers or emails.'
+        'Calls the background Gemini service to detect contextual PII such as names, addresses, or secrets.',
     })
   }
 
@@ -23,26 +24,40 @@ export class GeminiDetector extends BaseDetector {
       return []
     }
 
-    const matches = await requestGeminiScan(value)
-    if (matches.length === 0) {
+    // 1. Get raw PII suggestions from the background service
+    const rawMatches: GeminiApiResult[] = await requestGeminiPiiAnalysis(value)
+    if (rawMatches.length === 0) {
       return []
     }
 
-    log('GeminiDetector remote matches', {
+    log('GeminiDetector raw matches received', {
       filterId: input.context.filterId,
       fieldIndex: input.context.fieldIndex,
-      count: matches.length
+      count: rawMatches.length,
     })
 
-    return matches.map((match) => ({
-      detectorId: this.id,
-      source: 'gemini',
-      priority: 10,
-      match: match.value,
-      startIndex: match.startIndex,
-      endIndex: match.endIndex,
-      entityType: match.entityType,
-      reason: match.reason ?? 'Detected by Gemini scan'
-    }))
+    // 2. "Findall" logic: Find all occurrences and create DetectionMatch objects
+    const allMatches: DetectionMatch[] = []
+
+    for (const item of rawMatches) {
+      const searchTerm = item.value
+      if (!searchTerm) continue
+
+      let currentIndex = -1
+      while ((currentIndex = value.indexOf(searchTerm, currentIndex + 1)) !== -1) {
+        allMatches.push({
+          detectorId: this.id,
+          source: 'gemini',
+          priority: 10, // Default priority for Gemini matches
+          match: searchTerm,
+          startIndex: currentIndex,
+          endIndex: currentIndex + searchTerm.length,
+          entityType: 'contextual_pii', // Hardcoded as per our type cleanup
+          reason: item.reason,
+        })
+      }
+    }
+
+    return allMatches
   }
 }

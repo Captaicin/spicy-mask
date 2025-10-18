@@ -8,7 +8,7 @@
 | 경로 | 설명 |
 | --- | --- |
 | `index.ts` | 서비스 워커 엔트리 포인트. 설치 이벤트 등록과 메시지 라우팅을 담당합니다. |
-| `geminiScan.ts` | `RUN_GEMINI_SCAN` 메시지에 응답하는 모듈. 3초 지연 이후 텍스트에서 `1234`/`qwer` 토큰을 찾아 엔터티 타입과 사유(reason)를 반환합니다. |
+| `geminiService.ts` | `RUN_GEMINI_PII_ANALYSIS` 메시지에 응답합니다. `LanguageModel` API의 프록시 역할을 하여 LLM을 호출하고 원본 PII 제안을 반환합니다. |
 
 ## 주요 API
 ### 설치 훅
@@ -23,10 +23,10 @@ chrome.runtime.onInstalled.addListener(() => {})
 onMessage(async (message) => { /* ... */ })
 ```
 - `src/shared/messaging.ts`의 `onMessage` 래퍼를 사용해 Promise 기반 라우팅을 제공합니다.
-- 기본 구현은 `PING` 타입에 `pong`을 응답하고, `RUN_GEMINI_SCAN`에 대해서는 비동기로 `geminiScan.ts`를 호출해 결과를 반환하며, 미지정 타입에는 에러를 반환합니다.
+- 기본 구현은 `PING` 타입에 `pong`을 응답하고, `RUN_GEMINI_PII_ANALYSIS`에 대해서는 비동기로 `geminiService.ts`를 호출해 결과를 반환하며, 미지정 타입에는 에러를 반환합니다.
 - 새 메시지를 지원하려면 `switch` 블록에 케이스를 추가하고 `Msg`/`MsgResponse` 타입을 업데이트하세요.
 
 ## 확장 포인트
 - **추가 메시지 핸들러**: 상황별 비즈니스 로직을 케이스로 분기합니다.
-- **원격 감지 통합**: `geminiScan.ts`는 현재 스텁이지만, 외부 감지 API 호출로 교체하기 쉽도록 비동기 구조와 사유(reason) 필드를 유지합니다.
+- **원격 감지 통합**: `geminiService.ts`는 실제 `LanguageModel` API 구현을 포함하고 있으며, 다른 종류의 프롬프트나 모델을 지원하도록 확장될 수 있습니다.
 - **백그라운드 작업 예약**: 크롬 알람, 스토리지 변경 리스너 등을 이 모듈에 넣을 수 있습니다.

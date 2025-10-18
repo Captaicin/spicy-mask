@@ -4,7 +4,7 @@ import type { FormElement } from './FormFilter'
 import { detectionEngine } from '../detection'
 import {
   type DetectionContext,
-  type DetectionTrigger
+  type DetectionTrigger,
 } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
 import { TargetHighlighter } from './TargetHighlighter'
@@ -97,9 +97,9 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     () => ({
       element: target,
       filterId,
-      fieldIndex: index
+      fieldIndex: index,
     }),
-    [target, filterId, index]
+    [target, filterId, index],
   )
 
   const isMountedRef = useRef(true)
@@ -112,39 +112,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     matchesRef.current = matches
   }, [matches])
   const detectionSequenceRef = useRef(0)
-  const manualMatchesRef = useRef<DetectionMatch[]>([])
-
-  const MANUAL_DETECTOR_IDS = useMemo(() => new Set(['gemini-detector']), [])
-
-  const isManualDetectorMatch = useCallback(
-    (match: DetectionMatch) => MANUAL_DETECTOR_IDS.has(match.detectorId),
-    [MANUAL_DETECTOR_IDS]
-  )
-
-  const filterValidManualMatches = useCallback(
-    (valueSnapshot: string): DetectionMatch[] => {
-      return manualMatchesRef.current.filter((match) => {
-        const slice = valueSnapshot.slice(match.startIndex, match.endIndex)
-        return slice === match.match
-      })
-    },
-    []
-  )
-
-  const mergeMatches = useCallback((primary: DetectionMatch[], secondary: DetectionMatch[]): DetectionMatch[] => {
-    const dedupe = new Map<string, DetectionMatch>()
-    const insert = (match: DetectionMatch) => {
-      const key = `${match.detectorId}:${match.startIndex}:${match.endIndex}:${match.match}`
-      if (!dedupe.has(key)) {
-        dedupe.set(key, match)
-      }
-    }
-
-    primary.forEach(insert)
-    secondary.forEach(insert)
-
-    return Array.from(dedupe.values())
-  }, [])
 
   useEffect(() => {
     return () => {
@@ -161,38 +128,25 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         const results = await detectionEngine.run({
           value: nextValue,
           context: detectionContext,
-          trigger
+          trigger,
         })
 
-        if (!isMountedRef.current) {
+        if (!isMountedRef.current || detectionSequenceRef.current !== sequence) {
           return
         }
 
-        if (detectionSequenceRef.current !== sequence) {
-          return
-        }
-
-        let reconciled = results
-
-        if (trigger === 'manual') {
-          manualMatchesRef.current = results.filter(isManualDetectorMatch)
-        } else {
-          const preservedManualMatches = filterValidManualMatches(nextValue)
-          manualMatchesRef.current = preservedManualMatches
-          reconciled = mergeMatches(results, preservedManualMatches)
-        }
-
-        setMatches(reconciled)
-        highlighterRef.current?.update(nextValue, reconciled, { trigger })
+        // The engine now handles all reconciliation.
+        setMatches(results)
+        highlighterRef.current?.update(nextValue, results, { trigger })
       } catch (err) {
         warn('Detection run failed', {
           filterId,
           index,
-          message: err instanceof Error ? err.message : String(err)
+          message: err instanceof Error ? err.message : String(err),
         })
       }
     },
-    [detectionContext, filterId, index]
+    [detectionContext, filterId, index],
   )
 
   const applyMask = useCallback(
@@ -205,7 +159,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       if (!changed) {
         warn('Mask request produced no change', {
           filterId,
-          index
+          index,
         })
         setCloseSignal((token) => token + 1)
         return
@@ -217,8 +171,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         segments: targetMatches.map((match) => ({
           detectorId: match.detectorId,
           start: match.startIndex,
-          end: match.endIndex
-        }))
+          end: match.endIndex,
+        })),
       })
 
       setValue(masked)
@@ -227,21 +181,21 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       setCloseSignal((token) => token + 1)
       void runDetection(masked, { trigger: 'auto' })
     },
-    [filterId, index, runDetection, target]
+    [filterId, index, runDetection, target],
   )
 
   const handleMaskSegment = useCallback(
     ({ matches: selectedMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
       applyMask(selectedMatches)
     },
-    [applyMask]
+    [applyMask],
   )
 
   const handleMaskAll = useCallback(
     ({ matches: allMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
       applyMask(allMatches)
     },
-    [applyMask]
+    [applyMask],
   )
 
   const handleRequestScan = useCallback(() => {
@@ -261,7 +215,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       onMaskSegment: handleMaskSegment,
       onMaskAll: handleMaskAll,
       onRequestScan: handleRequestScan,
-      onContentScroll: handleContentScroll
+      onContentScroll: handleContentScroll,
     })
     highlighterRef.current = highlighter
 
@@ -287,7 +241,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         log('MirrorField input', {
           filterId,
           index,
-          value: nextValue
+          value: nextValue,
         })
       }
       setValue(nextValue)
@@ -312,7 +266,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       log('MirrorField contenteditable mutation', {
         filterId,
         index,
-        value: nextValue
+        value: nextValue,
       })
       setValue(nextValue)
     }
@@ -322,7 +276,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     observer.observe(target, {
       characterData: true,
       childList: true,
-      subtree: true
+      subtree: true,
     })
 
     return () => observer.disconnect()
@@ -343,8 +297,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     return () => observer.disconnect()
   }, [target])
 
-
-
   useEffect(() => {
     if (highlighterRef.current && highlighterRef.current instanceof TargetHighlighter) {
       highlighterRef.current.setCloseSignal(closeSignal)
@@ -355,7 +307,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   const location = useMemo(() => target.getAttribute('name') || target.getAttribute('id') || 'Unnamed field', [target])
 
   const handleChange: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> = (
-    event
+    event,
   ) => {
     const newValue = event.target.value
     setValue(newValue)
@@ -379,7 +331,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
             color: '#0f172a',
             caretColor: '#1f2937',
             border: '1px solid #cbd5f5',
-            borderRadius: '8px'
+            borderRadius: '8px',
           }}
         />
       )
@@ -408,7 +360,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           color: '#0f172a',
           caretColor: '#1f2937',
           border: '1px solid #cbd5f5',
-          borderRadius: '8px'
+          borderRadius: '8px',
         }}
       />
     )
@@ -425,7 +377,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         borderRadius: '12px',
         boxShadow: '0 12px 30px rgba(15, 23, 42, 0.2)',
         padding: '16px',
-        border: '1px solid #cbd5f5'
+        border: '1px solid #cbd5f5',
       }}
     >
       <header style={{ marginBottom: '12px' }}>
