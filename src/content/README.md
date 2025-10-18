@@ -33,7 +33,7 @@
 | `FormOverlayController.ts` | DOM 스캔, 필터 적용, 미러링 동기화를 총괄합니다. MutationObserver로 DOM 변화를 감시합니다.                                                                                  |
 | `FormScanner.ts`           | DOM에서 입력 컨트롤을 수집하고 가시성/상태 검사를 수행합니다.                                                                                                               |
 | `FormMirrorManager.ts`     | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다.                                                                                                      |
-| `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. 감지, 하이라이트, 마스킹 동작을 orchestration 하며, 수동 감지(Gemini) 결과를 캐시했다가 자동 감지 결과와 병합합니다.              |
+| `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. `DetectionEngine`으로부터 최종 탐지 결과를 받아 하이라이트 및 마스킹 동작을 orchestration합니다.              |
 | `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다. |
 | `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. Start Scan 도구 팝오버, 지연 상태(Scanning…), 감지 결과 요약 및 추가 Mask all 버튼을 렌더링합니다. 최근 개선 사항으로, 팝오버가 잘리는 문제를 해결하기 위해 React Portal을 적용하여 DOM 최상단에 렌더링되도록 수정했습니다. 또한, 사용자가 하이라이트된 텍스트에서 팝오버로 마우스를 옮길 때 팝오버가 닫히는 문제를 해결하여 사용자 경험을 개선했습니다. |
 | `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
@@ -50,7 +50,7 @@
 
 | 경로 | 설명 |
 | --- | --- |
-| `DetectionEngine.ts` | 등록된 모든 `BaseDetector`에서 감지 결과를 수집하고, `priority`를 기반으로 겹치는(overlap) 결과를 처리합니다. 가장 높은 우선순위의 감지 결과만 남겨 중복을 제거합니다. |
+| `DetectionEngine.ts` | 등록된 모든 `BaseDetector`에서 감지 결과를 수집하고, `priority`를 기반으로 겹치는(overlap) 결과를 처리합니다. 또한, 수동 탐지 결과를 내부적으로 캐시하고, 텍스트 변경 시(`'auto'` 트리거) 위치를 재계산하여 자동 탐지 결과와 병합하는 상태 관리 역할도 수행합니다. |
 | `detectors/BaseDetector.ts` | 모든 감지기의 기본 클래스. `detect` 메서드와 공통 입력 타입(`DetectionInput`)을 정의합니다. |
 | `detectors/RegexDetector.ts` | 다중 정규식 패턴을 사용해 PII(개인 식별 정보)를 탐지하는 엔진입니다. 자체적으로 패턴 우선순위에 따라 결과를 처리하고, 신용카드 번호의 경우 Luhn 알고리즘으로 유효성을 검증하여 정확도를 높입니다. |
 | `detectors/pii/piiPatterns.ts` | `RegexDetector`가 사용하는 PII 정규식 패턴, 우선순위, 유효성 검증 로직(Luhn 알고리즘)을 정의합니다. |
