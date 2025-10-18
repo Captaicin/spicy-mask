@@ -1,15 +1,19 @@
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
-  useMemo,
   useRef,
   useState
 } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift
+} from '@floating-ui/react'
 import type { DetectionContext, DetectionTrigger } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
-
 
 const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
 const POPOVER_WIDTH = 220
@@ -41,19 +45,15 @@ interface ActivePii {
   anchorRect: DOMRect
 }
 
-const summarizeMatches = (matches: DetectionMatch[]): { phone: number; email: number } => {
-  let phone = 0
-  let email = 0
-
-  matches.forEach((match) => {
-    if (match.entityType === 'phone_number') {
-      phone += 1
-    } else if (match.entityType === 'email') {
-      email += 1
-    }
-  })
-
-  return { phone, email }
+const summarizeMatches = (matches: DetectionMatch[]): Record<string, number> => {
+  return matches.reduce(
+    (acc, match) => {
+      const type = match.entityType ?? 'unknown'
+      acc[type] = (acc[type] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>
+  )
 }
 
 const focusMatch = (target: HTMLElement, match: DetectionMatch) => {
@@ -78,22 +78,36 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   showScanButton,
   latestTrigger
 }) => {
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const scanButtonRef = useRef<HTMLButtonElement>(null)
-  const scanPopoverRef = useRef<HTMLDivElement>(null)
   const popoverTimerRef = useRef<number | null>(null)
   const runCounterRef = useRef(0)
   const pendingRunIdRef = useRef<number | null>(null)
 
   const [hovered, setHovered] = useState<ActivePii | null>(null)
   const [pinned, setPinned] = useState<ActivePii | null>(null)
-  const [popoverPosition, setPopoverPosition] = useState<{ left: number; top: number } | null>(null)
 
   const [isScanOpen, setIsScanOpen] = useState(false)
   const [scanPending, setScanPending] = useState(false)
-  const [scanSummary, setScanSummary] = useState<{ phone: number; email: number } | null>(null)
+  const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(null)
 
   const activePii = pinned ?? hovered
+
+  const { refs: piiRefs, floatingStyles: piiFloatingStyles } = useFloating({
+    open: !!activePii,
+    placement: 'bottom',
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip(), shift({ padding: 8 })],
+    elements: {
+      reference: (activePii ? { getBoundingClientRect: () => activePii.anchorRect } : null) as any
+    }
+  })
+
+  const { refs: scanRefs, floatingStyles: scanFloatingStyles } = useFloating({
+    open: isScanOpen,
+    onOpenChange: setIsScanOpen,
+    placement: 'top-start',
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip(), shift({ padding: 8 })]
+  })
 
   const clearPopoverTimer = useCallback(() => {
     if (popoverTimerRef.current !== null) {
@@ -101,6 +115,18 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       popoverTimerRef.current = null
     }
   }, [])
+
+  const closePopover = useCallback(() => {
+    try {
+      target.focus({ preventScroll: true })
+    } catch (err) {
+      target.focus()
+    }
+    clearPopoverTimer()
+    setPinned(null)
+    setHovered(null)
+    setIsScanOpen(false)
+  }, [target, clearPopoverTimer])
 
   const handleHighlightEnter = useCallback(
     (pii: DetectionMatch, rect: DOMRect) => {
@@ -138,37 +164,28 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     [context, onFocusMatch, target, clearPopoverTimer]
   )
 
-  useLayoutEffect(() => {
-    if (!activePii) {
-      setPopoverPosition(null)
-      return
-    }
-    const { anchorRect } = activePii
-    const rawLeft = anchorRect.left + anchorRect.width / 2 - POPOVER_WIDTH / 2
-    const clampedLeft = Math.min(Math.max(0, rawLeft), Math.max(0, window.innerWidth - POPOVER_WIDTH))
-    const rawTop = anchorRect.bottom + 8
-
-    setPopoverPosition({ left: clampedLeft, top: rawTop })
-  }, [activePii])
-
-  const closePopover = useCallback(() => {
-    try {
-      target.focus({ preventScroll: true })
-    } catch (err) {
-      target.focus()
-    }
-    clearPopoverTimer()
-    setPinned(null)
-    setHovered(null)
-    setIsScanOpen(false)
-  }, [target, clearPopoverTimer])
-
   useEffect(() => {
     if (closeSignal !== closeSignalRef.current) {
       closeSignalRef.current = closeSignal
       closePopover()
     }
   }, [closeSignal, closePopover])
+
+  useEffect(() => {
+    if (!pinned) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const targetNode = event.target as Node
+      if (piiRefs.floating.current && !piiRefs.floating.current.contains(targetNode) && !target.contains(targetNode)) {
+        closePopover()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [pinned, closePopover, target, piiRefs.floating])
 
   const handleMaskIt = useCallback(() => {
     if (!activePii) return
@@ -180,21 +197,11 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     onMaskAll?.({ matches: allMatches, context })
   }, [allMatches, context, onMaskAll])
 
-  // ... (Scan button logic is mostly unchanged) ...
   const resetScanState = useCallback(() => {
     setScanPending(false)
     setScanSummary(null)
     pendingRunIdRef.current = null
   }, [])
-
-  const handleScanButtonClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault()
-      event.stopPropagation()
-      setIsScanOpen((open) => !open)
-    },
-    []
-  )
 
   const handleStartScan = useCallback(() => {
     runCounterRef.current += 1
@@ -208,14 +215,14 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
   useEffect(() => {
     if (latestTrigger !== 'manual') return
+
     const hasPendingRun = pendingRunIdRef.current !== null
-    if (!scanPending && !hasPendingRun) return
-    if (hasPendingRun) {
-      setScanSummary(summarizeMatches(allMatches))
-      pendingRunIdRef.current = null
-    }
+    if (!hasPendingRun) return
+
+    setScanSummary(summarizeMatches(allMatches))
     setScanPending(false)
-  }, [latestTrigger, allMatches, scanPending])
+    pendingRunIdRef.current = null
+  }, [latestTrigger, allMatches])
 
   useEffect(() => {
     if (!isScanOpen) {
@@ -225,28 +232,46 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
   const showMaskAllButton = Boolean(scanSummary) && !scanPending && allMatches.length > 0
 
-  const popover = createPortal(
-    activePii && popoverPosition ? (
+  const piiPopover = createPortal(
+    activePii ? (
       <div
-        ref={popoverRef}
+        ref={piiRefs.setFloating}
         onMouseEnter={handleInteractionEnter}
         onMouseLeave={handleInteractionLeave}
         style={{
-          position: 'fixed',
-          left: `${popoverPosition.left}px`,
-          top: `${popoverPosition.top}px`,
+          ...piiFloatingStyles,
           width: `${POPOVER_WIDTH}px`,
           pointerEvents: 'auto',
           zIndex: 2147483647,
           background: '#0f172a',
           color: '#f8fafc',
-          borderRadius: '8px',
+          borderRadius: '10px',
           boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
           padding: '12px',
           fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
         }}
       >
-        <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Detected Text</div>
+        <button
+          type="button"
+          onClick={closePopover}
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            width: '20px',
+            height: '20px',
+            border: 'none',
+            background: 'transparent',
+            color: '#94a3b8',
+            fontSize: '16px',
+            lineHeight: '20px',
+            textAlign: 'center',
+            cursor: 'pointer'
+          }}
+        >
+          ×
+        </button>
+        <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Detected PII</div>
         <div
           style={{
             fontSize: '12px',
@@ -255,16 +280,110 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             padding: '8px',
             borderRadius: '6px',
             marginBottom: '10px',
-            wordBreak: 'break-word'
+            wordBreak: 'break-word',
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr',
+            gap: '4px 8px',
+            alignItems: 'start'
           }}
         >
+          <div style={{ opacity: 0.7 }}>Match:</div>
           <div style={{ fontWeight: 600 }}>{activePii.pii.match}</div>
-          <div style={{ opacity: 0.7 }}>Detector: {activePii.pii.detectorId}</div>
+
+          <div style={{ opacity: 0.7 }}>Type:</div>
+          <div>{activePii.pii.entityType}</div>
+
+          <div style={{ opacity: 0.7 }}>Detector:</div>
+          <div>{activePii.pii.detectorId}</div>
+
+          {activePii.pii.reason && (
+            <>
+              <div style={{ opacity: 0.7 }}>Reason:</div>
+              <div>{activePii.pii.reason}</div>
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button type="button" onClick={handleMaskIt} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#f97316', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Mask it</button>
           <button type="button" onClick={handleMaskAll} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
         </div>
+      </div>
+    ) : null,
+    document.body
+  )
+
+  const scanPopover = createPortal(
+    isScanOpen ? (
+      <div
+        ref={scanRefs.setFloating}
+        style={{
+          ...scanFloatingStyles,
+          width: '180px',
+          padding: '12px',
+          borderRadius: '10px',
+          background: '#0f172a',
+          color: '#f8fafc',
+          boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
+          pointerEvents: 'auto',
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          zIndex: 2147483647,
+          maxHeight: '400px',
+          overflowY: 'auto'
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setIsScanOpen(false)}
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            width: '20px',
+            height: '20px',
+            border: 'none',
+            background: 'transparent',
+            color: '#94a3b8',
+            fontSize: '16px',
+            lineHeight: '20px',
+            textAlign: 'center',
+            cursor: 'pointer'
+          }}
+        >
+          ×
+        </button>
+        <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '10px' }}>Scan Tools</div>
+        <button type="button" onClick={handleStartScan} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: 'none', background: '#22c55e', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Start Scan</button>
+        <div
+          style={{
+            marginTop: '12px',
+            fontSize: '12px',
+            color: '#cbd5f5',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {scanPending && !scanSummary ? (
+            <span>Scanning…</span>
+          ) : scanSummary ? (
+            <>
+              <span style={{ fontWeight: 600 }}>Results</span>
+              {Object.entries(scanSummary).length > 0 ? (
+                Object.entries(scanSummary).map(([type, count]) => (
+                  <span key={type} style={{ marginLeft: '8px' }}>
+                    • {type}: {count}
+                  </span>
+                ))
+              ) : (
+                <span>No PII found.</span>
+              )}
+            </>
+          ) : (
+            <span>Run Start Scan to scan PII with Gemini Nano</span>
+          )}
+        </div>
+        {showMaskAllButton ? (
+          <button type="button" onClick={handleMaskAll} style={{ width: '100%', marginTop: '10px', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
+        ) : null}
       </div>
     ) : null,
     document.body
@@ -305,76 +424,36 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       </div>
 
       {showScanButton ? (
-        <>
-          <button
-            ref={scanButtonRef}
-            type="button"
-            onClick={handleScanButtonClick}
-            style={{
-              position: 'absolute',
-              right: '8px',
-              bottom: '8px',
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              border: 'none',
-              background: '#2563eb',
-              color: '#f8fafc',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 6px 16px rgba(37, 99, 235, 0.25)',
-              pointerEvents: 'auto'
-            }}
-            title="Scan for sensitive text"
-          >
-            ✦
-          </button>
-          {isScanOpen ? (
-            <div
-              ref={scanPopoverRef}
-              style={{
-                position: 'absolute',
-                right: '8px',
-                bottom: '48px',
-                width: '180px',
-                padding: '12px',
-                borderRadius: '10px',
-                background: '#0f172a',
-                color: '#f8fafc',
-                boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
-                pointerEvents: 'auto',
-                fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                zIndex: 2147483646
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '10px' }}>Scan Tools</div>
-              <button type="button" onClick={handleStartScan} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: 'none', background: '#22c55e', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Start Scan</button>
-              <div style={{ marginTop: '12px', fontSize: '12px', color: '#cbd5f5' }}>
-                {scanPending && !scanSummary ? (
-                  <span>Scanning…</span>
-                ) : scanSummary ? (
-                  <>
-                    <span>Results</span>
-                    <span>• phone_number: {scanSummary.phone}</span>
-                    <span>• email: {scanSummary.email}</span>
-                  </>
-                ) : (
-                  <span>Run Start Scan to scan PII with Gemini Nano</span>
-                )}
-              </div>
-              {showMaskAllButton ? (
-                <button type="button" onClick={handleMaskAll} style={{ width: '100%', marginTop: '10px', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
-              ) : null}
-            </div>
-          ) : null}
-        </>
+        <button
+          ref={scanRefs.setReference}
+          type="button"
+          onClick={() => setIsScanOpen((open) => !open)}
+          style={{
+            position: 'absolute',
+            right: '8px',
+            bottom: '8px',
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            border: 'none',
+            background: '#2563eb',
+            color: '#f8fafc',
+            fontSize: '14px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 6px 16px rgba(37, 99, 235, 0.25)',
+            pointerEvents: 'auto'
+          }}
+          title="Scan for sensitive text"
+        >
+          ✦
+        </button>
       ) : null}
-      {popover}
+      {piiPopover}
+      {scanPopover}
     </>
   )
 }

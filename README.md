@@ -64,7 +64,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
       - `FormScanner.ts`: DOM scanner for eligible elements.
       - `MirrorField.tsx`: React mirror UI with detection/masking integration.
       - `TargetHighlighter.ts`: A core class that creates and synchronizes a highlight overlay on top of a target field. It uses `ResizeObserver`, `MutationObserver`, and tracks scrollable parent elements to precisely detect changes in the original field's size, position, style, and scroll state, updating the overlay without visual inconsistencies via `requestAnimationFrame`.
-      - `TextHighlightOverlay.tsx`: A React UI layer that visualizes detected text and provides masking actions. It renders the "Start Scan" tool popover, a "Scanning..." delay state, a summary of detection results, and an additional "Mask all" button. Recent improvements include applying a React Portal to render the popover at the top of the DOM to solve clipping issues, and fixing an issue where the popover would close when the user moved the mouse from the highlighted text to the popover, improving the user experience.
+      - `TextHighlightOverlay.tsx`: A React UI layer that visualizes detected text and provides masking actions. It renders key UI elements like the "Start Scan" tool popover and a "Scanning..." state.
       - `filters/`
         - `index.ts`: Barrel exports for filter implementations.
         - `AllFormFilter.ts`, `TextFormFilter.ts`, `MockFormFilter.ts`: Built-in filter strategies.
