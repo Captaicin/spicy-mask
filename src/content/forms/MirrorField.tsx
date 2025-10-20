@@ -179,7 +179,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       setElementValue(target, masked)
       setMatches([])
       setCloseSignal((token) => token + 1)
-      void runDetection(masked, { trigger: 'auto' })
     },
     [filterId, index, runDetection, target],
   )
