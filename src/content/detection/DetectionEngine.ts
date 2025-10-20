@@ -42,7 +42,17 @@ export class DetectionEngine {
         })
       }
     }
-    return remapped
+
+    // Deduplicate the remapped matches to prevent exponential growth of the cache.
+    const uniqueRemapped = new Map<number, DetectionMatch>()
+    for (const match of remapped) {
+      // Using startIndex as the key ensures that we only have one match per position.
+      if (!uniqueRemapped.has(match.startIndex)) {
+        uniqueRemapped.set(match.startIndex, match)
+      }
+    }
+
+    return Array.from(uniqueRemapped.values())
   }
 
   async run(input: DetectionInput): Promise<DetectionMatch[]> {
