@@ -431,20 +431,19 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           style={{
             position: 'absolute',
             right: '8px',
-            bottom: '8px',
-            width: '28px',
-            height: '28px',
+            bottom: '4px',
+            width: '20px',
+            height: '20px',
             borderRadius: '50%',
             border: 'none',
             background: '#2563eb',
             color: '#f8fafc',
-            fontSize: '14px',
+            fontSize: '10px',
+            lineHeight: '20px',
+            textAlign: 'center',
             fontWeight: 700,
             cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 6px 16px rgba(37, 99, 235, 0.25)',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
             pointerEvents: 'auto'
           }}
           title="Scan for sensitive text"
