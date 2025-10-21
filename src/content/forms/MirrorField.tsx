@@ -144,7 +144,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         }
 
         setMatches(results)
-        highlighterRef.current?.update(nextValue, results, mappings, { trigger })
+        // TODO: 입력창 사이즈 변경 감지하여 스마트하게 처리하기 (현재는 200ms 지연으로 하드코딩)
+        setTimeout(() => {
+          highlighterRef.current?.update(nextValue, results, mappings, { trigger })
+        }, 200);
       } catch (err) {
         warn('Detection run failed', {
           filterId,
