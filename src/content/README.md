@@ -35,7 +35,7 @@
 | `FormMirrorManager.ts`     | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다.                                                                                                      |
 | `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. `DetectionEngine`으로부터 최종 탐지 결과를 받아 하이라이트 및 마스킹 동작을 orchestration합니다.              |
 | `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다. |
-| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. Start Scan 도구 팝오버, 지연 상태(Scanning…), 감지 결과 요약 및 추가 Mask all 버튼을 렌더링합니다. 최근 개선 사항으로, 팝오버가 잘리는 문제를 해결하기 위해 React Portal을 적용하여 DOM 최상단에 렌더링되도록 수정했습니다. 또한, 사용자가 하이라이트된 텍스트에서 팝오버로 마우스를 옮길 때 팝오버가 닫히는 문제를 해결하여 사용자 경험을 개선했습니다. |
+| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. "Start Scan" 도구 팝오버, "Scanning..." 상태 등을 렌더링하며, 스캔 후에는 탐지된 모든 PII의 종류와 개수를 종합하여 보여줍니다(예: "전화번호: 2"). 팝업 위치 계산은 `@floating-ui/react`를 사용하여 안정성을 높였고, `React.createPortal`을 통해 팝업이 잘리는 현상을 해결했습니다. 개선된 팝업 닫기 동작 등으로 안정적인 사용자 경험을 제공합니다. |
 | `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
 
 ### 필터 구현
@@ -61,7 +61,8 @@
 
 ## 마스킹(`masking/`)
 
-- `masker.ts`: 감지된 인덱스 범위를 기반으로 문자열을 마스킹합니다. 겹치는 범위를 정리하고 결과와 변경 여부를 반환합니다.
+- `masker.ts`: 일반 `<input>`, `<textarea>`와 같은 단순 텍스트(string) 값에 대해 마스킹을 수행합니다.
+- `contentEditableMasker.ts`: `contenteditable` 요소의 마스킹을 담당합니다. `TreeWalker`를 사용하여 HTML 구조(특히 줄바꿈)를 보존하면서, 텍스트 노드 레벨에서 안전하게 마스킹을 적용합니다.
 - `index.ts`: 마스킹 유틸리티 재노출.
 
 ## 외부 연동 포인트
