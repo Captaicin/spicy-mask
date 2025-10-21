@@ -48,9 +48,6 @@ export class TargetHighlighter {
   private readonly container: HTMLDivElement
   private readonly inner: HTMLDivElement
   private readonly root: Root
-  private padding = '0px'
-  private scrollTop = 0
-  private scrollLeft = 0
   private clientWidth = 0
   private clientHeight = 0
   private mutationObserver: MutationObserver | null = null
@@ -181,8 +178,10 @@ export class TargetHighlighter {
 
     window.removeEventListener('resize', this.requestLayoutUpdate, true)
     this.target.removeEventListener('scroll', this.handleAncestorScroll, true)
-    this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.handleAncestorScroll, true))
-    this.scrollableAncestors.forEach((el) => el.removeEventListener('scroll', this.requestLayoutUpdate, true))
+    this.scrollableAncestors.forEach((el) => {
+      el.removeEventListener('scroll', this.handleAncestorScroll, true)
+      el.removeEventListener('scroll', this.requestLayoutUpdate, true)
+    })
     this.scrollableAncestors = []
 
     if (this.layoutRafId !== null) {
@@ -213,15 +212,13 @@ export class TargetHighlighter {
       }
     }
 
-    this.padding = joinPadding(computed)
-
     const style = this.inner.style
     style.font = computed.font
     style.lineHeight = computed.lineHeight
     style.letterSpacing = computed.letterSpacing
     style.whiteSpace = computed.whiteSpace
     style.wordBreak = computed.wordBreak
-    style.wordWrap = computed.wordWrap
+    style.overflowWrap = computed.overflowWrap
     style.textAlign = computed.textAlign
     style.textIndent = computed.textIndent
     style.textTransform = computed.textTransform
@@ -266,14 +263,14 @@ export class TargetHighlighter {
     window.addEventListener('resize', this.requestLayoutUpdate, true)
 
     this.scrollableAncestors = getScrollableAncestors(this.target)
-    this.scrollableAncestors.forEach((el) => el.addEventListener('scroll', this.handleAncestorScroll, true))
+    this.scrollableAncestors.forEach((el) => {
+      el.addEventListener('scroll', this.handleAncestorScroll, true)
+      el.addEventListener('scroll', this.requestLayoutUpdate, true)
+    })
 
     if (isScrollableElement(this.target)) {
       this.target.addEventListener('scroll', this.handleAncestorScroll, true)
     }
-
-    this.scrollableAncestors = getScrollableAncestors(this.target)
-    this.scrollableAncestors.forEach((el) => el.addEventListener('scroll', this.requestLayoutUpdate, true))
   }
 
   private readonly requestLayoutUpdate = (): void => {
