@@ -5,7 +5,7 @@ Spicy Mask is an on-device AI security extension that intelligently prevents per
 ## Features
 
 - **Phishing Page Detection:** Analyzes the full text content of the currently visited web page to determine its phishing risk level.
-- **Personally Identifiable Information (PII) Input Detection & Masking Suggestion:** Real-time detection of PII in text entered by the user into `<input>` or `<textarea>` fields.
+- **Personally Identifiable Information (PII) Input Detection & Masking Suggestion:** Real-time detection of PII in text entered by the user into `<input>`, `<textarea>`, or `contenteditable` fields.
 - **Context-Aware Decision Engine:** Combines the phishing detection results and PII input detection results to determine the final user warning/suggestion action.
 
 ## Usage
@@ -79,7 +79,8 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
         - `index.ts`: Registers default detectors.
         - `pii/piiPatterns.ts`: Defines PII patterns, priorities, and validation logic for the `RegexDetector`.
     - `masking/`
-      - `masker.ts`: Masking utility that applies detection ranges to text.
+      - `masker.ts`: Masking utility for simple text inputs.
+      - `contentEditableMasker.ts`: Advanced masking utility for `contenteditable` elements that preserves HTML formatting.
       - `index.ts`: Barrel export.
   - `options/`
     - `index.html`: Options page shell.

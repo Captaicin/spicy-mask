@@ -61,7 +61,8 @@
 
 ## 마스킹(`masking/`)
 
-- `masker.ts`: 감지된 인덱스 범위를 기반으로 문자열을 마스킹합니다. 겹치는 범위를 정리하고 결과와 변경 여부를 반환합니다.
+- `masker.ts`: 일반 `<input>`, `<textarea>`와 같은 단순 텍스트(string) 값에 대해 마스킹을 수행합니다.
+- `contentEditableMasker.ts`: `contenteditable` 요소의 마스킹을 담당합니다. `TreeWalker`를 사용하여 HTML 구조(특히 줄바꿈)를 보존하면서, 텍스트 노드 레벨에서 안전하게 마스킹을 적용합니다.
 - `index.ts`: 마스킹 유틸리티 재노출.
 
 ## 외부 연동 포인트

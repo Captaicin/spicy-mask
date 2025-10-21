@@ -1,4 +1,4 @@
-import type { DetectionMatch } from '../detection'
+import type { DetectionMatch } from '../../shared/types';
 
 export interface MaskOptions {
   maskChar?: string
