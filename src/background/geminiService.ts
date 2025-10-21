@@ -59,7 +59,6 @@ export async function runPiiAnalysis(
   const preprocessedText = text
     .trim()
     .replace(/(\r\n|\n){3,}/g, '\n\n')
-    .replace(/([^\n])(\r\n|\n)([^\n])/g, '$1 $3');
 
   const prompt = `Role: You are a privacy expert. Your task is to identify PII that is **difficult to detect with simple patterns such as regex**.
 
