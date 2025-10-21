@@ -9,7 +9,8 @@ import {
 import type { DetectionMatch } from '../../shared/types'
 import { TargetHighlighter } from './TargetHighlighter'
 import { maskValueWithMatches } from '../masking'
-import { maskContentEditableNodes, extractTextWithMapping, type TextNodeMapping } from '../masking/contentEditableMasker'
+import { maskContentEditableNodes } from '../masking/contentEditableMasker'
+import { extractTextWithMapping, type TextNodeMapping } from '../../shared/dom'
 
 const isInputElement = (element: FormElement): element is HTMLInputElement =>
   element instanceof HTMLInputElement
@@ -114,6 +115,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   useEffect(() => {
     matchesRef.current = matches
   }, [matches])
+  const mappingsRef = useRef(mappings)
+  useEffect(() => {
+    mappingsRef.current = mappings
+  }, [mappings])
   const detectionSequenceRef = useRef(0)
 
   useEffect(() => {
@@ -138,9 +143,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           return
         }
 
-        // The engine now handles all reconciliation.
         setMatches(results)
-        highlighterRef.current?.update(nextValue, results, { trigger })
+        highlighterRef.current?.update(nextValue, results, mappings, { trigger })
       } catch (err) {
         warn('Detection run failed', {
           filterId,
@@ -149,7 +153,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         })
       }
     },
-    [detectionContext, filterId, index],
+    [detectionContext, filterId, index, mappings],
   )
 
   const applyMask = useCallback(
@@ -166,15 +170,12 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           setCloseSignal((token) => token + 1);
           return;
         }
-        // The mask function modifies the DOM directly.
         const result = maskContentEditableNodes(targetMatches, mappings);
         changed = result.changed;
       } else {
-        // Use `value` from state directly
         const result = maskValueWithMatches(value, targetMatches);
         changed = result.changed;
         if (changed) {
-          // For standard inputs, we must update the DOM element.
           setElementValue(target, result.masked);
         }
       }
@@ -198,8 +199,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         })),
       });
 
-      // After a successful mask, the DOM has changed. We now need to re-sync our state
-      // to reflect this change. This will, in turn, trigger the useEffect that re-runs detection.
       if (isContentEditableElement(target)) {
         const { plainText: nextPlainText, mappings: nextMappings } = extractTextWithMapping(target as HTMLElement);
         setPlainText(nextPlainText);
@@ -229,11 +228,13 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   )
 
   const handleRequestScan = useCallback(() => {
-    void runDetection(valueRef.current, { trigger: 'manual' })
-  }, [runDetection])
+    const textToScan = isContentEditableElement(target) ? plainText : value;
+    if (textToScan === null) return;
+    void runDetection(textToScan, { trigger: 'manual' })
+  }, [runDetection, plainText, value, target])
 
   const handleContentScroll = useCallback(() => {
-    highlighterRef.current?.update(valueRef.current, matchesRef.current)
+    highlighterRef.current?.update(valueRef.current, matchesRef.current, mappingsRef.current)
   }, [])
 
   useEffect(() => {
@@ -256,11 +257,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [target, detectionContext, handleMaskSegment, handleMaskAll, handleRequestScan, handleContentScroll])
 
   useEffect(() => {
-    // For contenteditable, the source of truth is the derived plainText.
-    // For standard inputs, it's the simple `value`.
     const textToScan = isContentEditableElement(target) ? plainText : value;
 
-    // Do not run detection if the text is null (e.g., initial state for contenteditable)
     if (textToScan === null) {
       return;
     }
@@ -269,21 +267,20 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [runDetection, value, plainText, target]);
 
   useEffect(() => {
-    // This hook is for standard form elements, not contenteditable.
     if (!isInputElement(target) && !isTextareaElement(target) && !isSelectElement(target)) {
       return
     }
 
     const handleInput = () => {
       const nextValue = getElementValue(target)
-      if (isInputElement(target) || isTextareaElement(target)) {
-        log('MirrorField input', {
-          filterId,
-          index,
-          value: nextValue,
-        })
+      if (isContentEditableElement(target)) {
+        const { plainText: nextPlainText, mappings: nextMappings } = extractTextWithMapping(target as HTMLElement);
+        setPlainText(nextPlainText);
+        setMappings(nextMappings);
+        setValue(nextPlainText);
+      } else {
+        setValue(nextValue);
       }
-      setValue(nextValue)
     }
 
     target.addEventListener('input', handleInput)
@@ -311,11 +308,9 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
       setPlainText(nextPlainText);
       setMappings(nextMappings);
-      // Also update the main `value` state for consistency with other parts of the UI
       setValue(nextPlainText);
     };
 
-    // Run once on mount to set the initial state
     handleMutation();
 
     const observer = new MutationObserver(handleMutation);
@@ -366,7 +361,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       const baseRows = isTextareaElement(target) ? target.rows || 3 : 3
       return (
         <textarea
-          value={value}
+          value={value ?? ''}
           onChange={handleChange}
           rows={Math.max(3, Math.min(6, baseRows))}
           style={{

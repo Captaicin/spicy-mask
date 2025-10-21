@@ -32,3 +32,46 @@ export const createOverlayShadow = (id: string): ShadowOverlay => {
     }
   }
 }
+
+// Moved from contentEditableMasker.ts to be a shared utility
+export interface TextNodeMapping {
+  node: Text; // The DOM Text node
+  start: number; // The starting index in the concatenated plain text
+  end: number; // The ending index in the concatenated plain text
+}
+
+// Moved from contentEditableMasker.ts to be a shared utility
+export function extractTextWithMapping(root: HTMLElement): { plainText: string; mappings: TextNodeMapping[] } {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  let plainText = '';
+  const mappings: TextNodeMapping[] = [];
+  const blockElements = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'HR', 'PRE']);
+
+  while (node = walker.nextNode()) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textNode = node as Text;
+      const text = textNode.nodeValue || '';
+      if (text.length === 0) continue;
+
+      const start = plainText.length;
+      plainText += text;
+      const end = plainText.length;
+      
+      mappings.push({ node: textNode, start, end });
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as HTMLElement;
+      const tagName = element.tagName.toUpperCase();
+
+      // If we encounter a block element or a <br>, and the text doesn't already end with a newline, add one.
+      // This helps simulate how blocks create line breaks.
+      if (tagName === 'BR' || blockElements.has(tagName)) {
+        if (plainText.length > 0 && !plainText.endsWith('\n')) {
+          plainText += '\n';
+        }
+      }
+    }
+  }
+
+  return { plainText, mappings };
+}

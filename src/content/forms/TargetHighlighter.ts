@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import TextHighlightOverlay from './TextHighlightOverlay'
 import type { DetectionContext, DetectionTrigger } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
-
+import type { TextNodeMapping } from '../../shared/dom'
 
 const joinPadding = (computed: CSSStyleDeclaration): string => {
   const top = computed.paddingTop || '0px'
@@ -99,7 +99,7 @@ export class TargetHighlighter {
     this.attachObservers()
   }
 
-  update(value: string, matches: DetectionMatch[], meta: { trigger?: DetectionTrigger } = {}): void {
+  update(value: string, matches: DetectionMatch[], mappings: TextNodeMapping[] | null, meta: { trigger?: DetectionTrigger } = {}): void {
     if (this.destroyed) {
       return
     }
@@ -128,7 +128,6 @@ export class TargetHighlighter {
       const isStandardInput =
         this.target.tagName.toLowerCase() === 'input' || this.target.tagName.toLowerCase() === 'textarea'
 
-      const highlightRects: DOMRect[] = []
       const piiDetails = []
 
       for (const pii of this.currentMatches) {
@@ -136,21 +135,13 @@ export class TargetHighlighter {
         if (isStandardInput) {
           rects = this._getRectsForInput(pii)
         } else {
-          // This logic is from the user's reference code to handle newline differences in contenteditable
-          const textBeforePii = this.currentValue.substring(0, pii.startIndex)
-          const newlineCount = (textBeforePii.match(/\n/g) || []).length
-          const correctedStartIndex = pii.startIndex - newlineCount
-          const correctedEndIndex = pii.endIndex - newlineCount
-
-          const ranges = this._findTextRanges(correctedStartIndex, correctedEndIndex)
-          ranges.forEach((range) => {
-            rects.push(...Array.from(range.getClientRects()))
-          })
+          if (mappings) {
+            rects = this._getRectsFromMappings(pii, mappings)
+          }
         }
 
         if (rects.length > 0) {
           piiDetails.push({ pii, rects })
-          highlightRects.push(...rects)
         }
       }
       this.lastPiiDetails = piiDetails
@@ -372,226 +363,101 @@ export class TargetHighlighter {
     this.requestRender()
   }
 
-    private isTargetFocused(): boolean {
-
-      if (document.activeElement === this.target) {
-
-        return true
-
-      }
-
-      if (!this.target.shadowRoot) {
-
-        return false
-
-      }
-
-      return this.target.shadowRoot.contains(document.activeElement)
-
+  private isTargetFocused(): boolean {
+    if (document.activeElement === this.target) {
+      return true
     }
-
-  
-
-    private _findTextRanges(start: number, end: number): Range[] {
-
-      const ranges = []
-
-      const walker = document.createTreeWalker(this.target, NodeFilter.SHOW_TEXT)
-
-      let charCount = 0
-
-      let foundStart = false
-
-      let startNode: Node | null = null
-
-      let startOffset = 0
-
-      let endNode: Node | null = null
-
-      let endOffset = 0
-
-  
-
-      let currentNode
-
-      while ((currentNode = walker.nextNode())) {
-
-        const nodeLength = currentNode.textContent?.length ?? 0
-
-        const prevCharCount = charCount
-
-        charCount += nodeLength
-
-  
-
-        if (!foundStart && start < charCount) {
-
-          startNode = currentNode
-
-          startOffset = start - prevCharCount
-
-          foundStart = true
-
-        }
-
-  
-
-        if (foundStart && end <= charCount) {
-
-          endNode = currentNode
-
-          endOffset = end - prevCharCount
-
-          const range = document.createRange()
-
-          range.setStart(startNode as Node, startOffset)
-
-          range.setEnd(endNode as Node, endOffset)
-
-          ranges.push(range)
-
-          return ranges
-
-        }
-
-      }
-
-  
-
-      if (foundStart) {
-
-        const range = document.createRange()
-
-        range.setStart(startNode as Node, startOffset)
-
-        const lastNode = walker.currentNode ?? this.target.lastChild
-
-        if (lastNode) {
-
-          range.setEnd(lastNode, lastNode.textContent?.length ?? 0)
-
-          ranges.push(range)
-
-        }
-
-      }
-
-  
-
-      return ranges
-
+    if (!this.target.shadowRoot) {
+      return false
     }
-
-  
-
-    private _getRectsForInput(pii: { startIndex: number; endIndex: number }): DOMRect[] {
-
-      const input = this.target as HTMLInputElement | HTMLTextAreaElement
-
-      const { value, scrollLeft, scrollTop } = input
-
-      const { startIndex, endIndex } = pii
-
-  
-
-      const twin = document.createElement('div')
-
-      const styles = window.getComputedStyle(input)
-
-  
-
-      const twinStyles: Partial<CSSStyleDeclaration> = {
-
-        position: 'absolute',
-
-        visibility: 'hidden',
-
-        pointerEvents: 'none',
-
-        top: `${input.offsetTop}px`,
-
-        left: `${input.offsetLeft}px`,
-
-        width: `${input.clientWidth}px`,
-
-        height: `${input.clientHeight}px`,
-
-        overflow: 'auto',
-
-        whiteSpace: styles.whiteSpace,
-
-        wordWrap: styles.wordWrap,
-
-        font: styles.font,
-
-        padding: styles.padding,
-
-        border: styles.border,
-
-        letterSpacing: styles.letterSpacing,
-
-        textTransform: styles.textTransform,
-
-        lineHeight: styles.lineHeight,
-
-        boxSizing: styles.boxSizing,
-
-        direction: styles.direction,
-
-        tabSize: styles.tabSize
-
-      }
-
-      Object.assign(twin.style, twinStyles)
-
-  
-
-      const textBefore = value.substring(0, startIndex)
-
-      const piiText = value.substring(startIndex, endIndex)
-
-      const textAfter = value.substring(endIndex)
-
-  
-
-      const textNodeBefore = document.createTextNode(textBefore)
-
-      const span = document.createElement('span')
-
-      span.textContent = piiText
-
-      const textNodeAfter = document.createTextNode(textAfter)
-
-  
-
-      twin.appendChild(textNodeBefore)
-
-      twin.appendChild(span)
-
-      twin.appendChild(textNodeAfter)
-
-  
-
-      document.body.appendChild(twin)
-
-      twin.scrollLeft = scrollLeft
-
-      twin.scrollTop = scrollTop
-
-  
-
-      const piiRects = Array.from(span.getClientRects())
-
-  
-
-      document.body.removeChild(twin)
-
-  
-
-      return piiRects
-
-    }
-
+    return this.target.shadowRoot.contains(document.activeElement)
   }
 
-  
+  private _getRectsFromMappings(pii: DetectionMatch, mappings: TextNodeMapping[]): DOMRect[] {
+    const rects: DOMRect[] = [];
+    const matchStart = pii.startIndex;
+    const matchEnd = pii.endIndex;
+
+    const affectedMappings = mappings.filter(
+      (mapping) => Math.max(matchStart, mapping.start) < Math.min(matchEnd, mapping.end)
+    );
+
+    for (const mapping of affectedMappings) {
+      const { node, start: nodeStartInPlainText, end: nodeEndInPlainText } = mapping;
+
+      const intersectionStart = Math.max(matchStart, nodeStartInPlainText);
+      const intersectionEnd = Math.min(matchEnd, nodeEndInPlainText);
+
+      if (intersectionStart >= intersectionEnd) continue;
+
+      const nodeHighlightStart = intersectionStart - nodeStartInPlainText;
+      const nodeHighlightEnd = intersectionEnd - nodeStartInPlainText;
+
+      if (nodeHighlightStart >= nodeHighlightEnd || !node.nodeValue || node.nodeValue.length < nodeHighlightEnd) continue;
+
+      const range = document.createRange();
+      range.setStart(node, nodeHighlightStart);
+      range.setEnd(node, nodeHighlightEnd);
+      
+      rects.push(...Array.from(range.getClientRects()));
+    }
+
+    return rects;
+  }
+
+  private _getRectsForInput(pii: { startIndex: number; endIndex: number }): DOMRect[] {
+    const input = this.target as HTMLInputElement | HTMLTextAreaElement
+    const { scrollLeft, scrollTop } = input
+    const { startIndex, endIndex } = pii
+    const value = this.currentValue;
+
+    const twin = document.createElement('div')
+    const styles = window.getComputedStyle(input)
+
+    const twinStyles: Partial<CSSStyleDeclaration> = {
+      position: 'absolute',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+      top: `${input.offsetTop}px`,
+      left: `${input.offsetLeft}px`,
+      width: `${input.clientWidth}px`,
+      height: `${input.clientHeight}px`,
+      overflow: 'auto',
+      whiteSpace: styles.whiteSpace,
+      wordWrap: styles.wordWrap,
+      font: styles.font,
+      padding: styles.padding,
+      border: styles.border,
+      letterSpacing: styles.letterSpacing,
+      textTransform: styles.textTransform,
+      lineHeight: styles.lineHeight,
+      boxSizing: styles.boxSizing,
+      direction: styles.direction,
+      tabSize: styles.tabSize
+    }
+    Object.assign(twin.style, twinStyles)
+
+    const textBefore = value.substring(0, startIndex)
+    const piiText = value.substring(startIndex, endIndex)
+    const textAfter = value.substring(endIndex)
+
+    const textNodeBefore = document.createTextNode(textBefore)
+    const span = document.createElement('span')
+    span.textContent = piiText
+    const textNodeAfter = document.createTextNode(textAfter)
+
+    twin.appendChild(textNodeBefore)
+    twin.appendChild(span)
+    twin.appendChild(textNodeAfter)
+
+    document.body.appendChild(twin)
+    twin.scrollLeft = scrollLeft
+    twin.scrollTop = scrollTop
+
+    const piiRects = Array.from(span.getClientRects())
+
+    document.body.removeChild(twin)
+
+    return piiRects
+  }
+}
