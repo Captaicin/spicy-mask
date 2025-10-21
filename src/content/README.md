@@ -61,7 +61,7 @@
 
 ## 마스킹(`masking/`)
 
-- `masker.ts`: 일반 `<input>`, `<textarea>`와 같은 단순 텍스트(string) 값에 대해 마스킹을 수행합니다.
+- `plainTextMasker.ts`: 일반 `<input>`, `<textarea>`와 같은 단순 텍스트(string) 값에 대해 마스킹을 수행합니다.
 - `contentEditableMasker.ts`: `contenteditable` 요소의 마스킹을 담당합니다. `TreeWalker`를 사용하여 HTML 구조(특히 줄바꿈)를 보존하면서, 텍스트 노드 레벨에서 안전하게 마스킹을 적용합니다.
 - `index.ts`: 마스킹 유틸리티 재노출.
 

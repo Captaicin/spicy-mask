@@ -8,8 +8,7 @@ import {
 } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
 import { TargetHighlighter } from './TargetHighlighter'
-import { maskValueWithMatches } from '../masking'
-import { maskContentEditableNodes } from '../masking/contentEditableMasker'
+import { maskValueWithMatches, maskContentEditableNodes } from '../masking'
 import { extractTextWithMapping, type TextNodeMapping } from '../../shared/dom'
 
 const isInputElement = (element: FormElement): element is HTMLInputElement =>

@@ -1,1 +1,2 @@
-export * from './masker'
+export * from './plainTextMasker'
+export * from './contentEditableMasker'

@@ -5,14 +5,6 @@ import type { DetectionContext, DetectionTrigger } from '../detection/detectors/
 import type { DetectionMatch } from '../../shared/types'
 import type { TextNodeMapping } from '../../shared/dom'
 
-const joinPadding = (computed: CSSStyleDeclaration): string => {
-  const top = computed.paddingTop || '0px'
-  const right = computed.paddingRight || top
-  const bottom = computed.paddingBottom || top
-  const left = computed.paddingLeft || right
-  return `${top} ${right} ${bottom} ${left}`
-}
-
 const isScrollableElement = (element: HTMLElement): element is HTMLElement & { scrollTop: number; scrollLeft: number } => {
   if (!(element instanceof HTMLElement)) {
     return false

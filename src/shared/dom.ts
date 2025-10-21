@@ -33,14 +33,12 @@ export const createOverlayShadow = (id: string): ShadowOverlay => {
   }
 }
 
-// Moved from contentEditableMasker.ts to be a shared utility
 export interface TextNodeMapping {
   node: Text; // The DOM Text node
   start: number; // The starting index in the concatenated plain text
   end: number; // The ending index in the concatenated plain text
 }
 
-// Moved from contentEditableMasker.ts to be a shared utility
 export function extractTextWithMapping(root: HTMLElement): { plainText: string; mappings: TextNodeMapping[] } {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
   let node: Node | null;

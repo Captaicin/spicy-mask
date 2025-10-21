@@ -79,7 +79,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
         - `index.ts`: Registers default detectors.
         - `pii/piiPatterns.ts`: Defines PII patterns, priorities, and validation logic for the `RegexDetector`.
     - `masking/`
-      - `masker.ts`: Masking utility for simple text inputs.
+      - `plainTextMasker.ts`: Masking utility for simple text inputs.
       - `contentEditableMasker.ts`: Advanced masking utility for `contenteditable` elements that preserves HTML formatting.
       - `index.ts`: Barrel export.
   - `options/`
