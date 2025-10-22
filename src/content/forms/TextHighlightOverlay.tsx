@@ -127,7 +127,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const { refs: panelRefs, floatingStyles: panelFloatingStyles } = useFloating({
     open: isPanelOpen,
     onOpenChange: setIsPanelOpen,
-    placement: 'top-end',
+    placement: 'bottom-start',
     whileElementsMounted: autoUpdate,
     middleware: [offset(8), flip(), shift({ padding: 8 })]
   })
@@ -433,7 +433,13 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const managementPanel = createPortal(
     isPanelOpen && onUnignore && onAddRule && onRemoveRule && onIgnoreValue ? (
       <div ref={panelWrapperRef}>
-        <div ref={panelRefs.setFloating} style={panelFloatingStyles}>
+        <div
+          ref={panelRefs.setFloating}
+          style={{
+            ...panelFloatingStyles,
+            zIndex: 2147483647,
+          }}
+        >
           <ManagementPanel 
             visibleMatches={allMatches}
             ignoredValues={ignoredValues}
@@ -498,8 +504,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
               background: '#475569',
               color: '#f8fafc',
               fontSize: '12px',
-              lineHeight: '20px',
-              textAlign: 'center',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
               fontWeight: 700,
               cursor: 'pointer',
               boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
