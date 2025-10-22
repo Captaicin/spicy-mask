@@ -14,6 +14,8 @@ import {
 } from '@floating-ui/react'
 import type { DetectionContext, DetectionTrigger } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
+import { ManagementPanel } from './ManagementPanel'
+import { uiContainerRegistry } from '../uiRegistry'
 
 const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
 const POPOVER_WIDTH = 220
@@ -31,9 +33,15 @@ interface HighlightOverlayProps {
   allMatches: DetectionMatch[]
   target: HTMLElement
   context: DetectionContext
+  ignoredValues: string[]
+  userRules: string[]
   onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+  onIgnoreValue?: (value: string) => void
+  onUnignore?: (value: string) => void
+  onAddRule?: (rule: string) => void
+  onRemoveRule?: (rule: string) => void
   onRequestScan?: () => void
   closeSignal: number
   showScanButton: boolean
@@ -70,9 +78,15 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   allMatches,
   target,
   context,
+  ignoredValues,
+  userRules,
   onMaskSegment,
   onMaskAll,
   onFocusMatch,
+  onIgnoreValue,
+  onUnignore,
+  onAddRule,
+  onRemoveRule,
   onRequestScan,
   closeSignal,
   showScanButton,
@@ -86,6 +100,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const [pinned, setPinned] = useState<ActivePii | null>(null)
 
   const [isScanOpen, setIsScanOpen] = useState(false)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [scanPending, setScanPending] = useState(false)
   const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(null)
 
@@ -108,6 +123,25 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     whileElementsMounted: autoUpdate,
     middleware: [offset(8), flip(), shift({ padding: 8 })]
   })
+
+  const { refs: panelRefs, floatingStyles: panelFloatingStyles } = useFloating({
+    open: isPanelOpen,
+    onOpenChange: setIsPanelOpen,
+    placement: 'top-end',
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip(), shift({ padding: 8 })]
+  })
+
+  const panelWrapperRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const wrapper = panelWrapperRef.current
+    if (wrapper) {
+      uiContainerRegistry.add(wrapper)
+      return () => {
+        uiContainerRegistry.delete(wrapper)
+      }
+    }
+  }, [isPanelOpen]) // Rerun when panel is opened/closed
 
   const clearPopoverTimer = useCallback(() => {
     if (popoverTimerRef.current !== null) {
@@ -197,6 +231,12 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     onMaskAll?.({ matches: allMatches, context })
   }, [allMatches, context, onMaskAll])
 
+  const handleIgnore = useCallback(() => {
+    if (!activePii) return
+    onIgnoreValue?.(activePii.pii.match)
+    closePopover()
+  }, [activePii, onIgnoreValue, closePopover])
+
   const resetScanState = useCallback(() => {
     setScanPending(false)
     setScanSummary(null)
@@ -280,7 +320,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             padding: '8px',
             borderRadius: '6px',
             marginBottom: '10px',
-            wordBreak: 'break-word',
+            wordBreak: 'break-all',
             display: 'grid',
             gridTemplateColumns: 'auto 1fr',
             gap: '4px 8px',
@@ -305,8 +345,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button type="button" onClick={handleMaskIt} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#f97316', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Mask it</button>
-          <button type="button" onClick={handleMaskAll} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
+          <button type="button" onClick={handleIgnore} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 500, cursor: 'pointer' }}>Ignore</button>
         </div>
+        <button type="button" onClick={handleMaskAll} style={{ width: '100%', marginTop: '8px', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
       </div>
     ) : null,
     document.body
@@ -389,6 +430,26 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     document.body
   )
 
+  const managementPanel = createPortal(
+    isPanelOpen && onUnignore && onAddRule && onRemoveRule && onIgnoreValue ? (
+      <div ref={panelWrapperRef}>
+        <div ref={panelRefs.setFloating} style={panelFloatingStyles}>
+          <ManagementPanel 
+            visibleMatches={allMatches}
+            ignoredValues={ignoredValues}
+            userRules={userRules}
+            onIgnoreValue={onIgnoreValue}
+            onUnignore={onUnignore}
+            onAddRule={onAddRule}
+            onRemoveRule={onRemoveRule}
+            onClose={() => setIsPanelOpen(false)}
+          />
+        </div>
+      </div>
+    ) : null,
+    document.body
+  )
+
   return (
     <>
       <div
@@ -424,33 +485,56 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       </div>
 
       {showScanButton ? (
-        <button
-          ref={scanRefs.setReference}
-          type="button"
-          onClick={() => setIsScanOpen((open) => !open)}
-          style={{
-            position: 'absolute',
-            right: '8px',
-            bottom: '4px',
-            width: '20px',
-            height: '20px',
-            borderRadius: '50%',
-            border: 'none',
-            background: '#2563eb',
-            color: '#f8fafc',
-            fontSize: '10px',
-            lineHeight: '20px',
-            textAlign: 'center',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
-            pointerEvents: 'auto'
-          }}
-          title="Scan for sensitive text"
-        >
-          ✦
-        </button>
+        <div style={{ position: 'absolute', right: '8px', bottom: '4px', display: 'flex', gap: '4px' }}>
+          <button
+            ref={panelRefs.setReference}
+            type="button"
+            onClick={() => setIsPanelOpen((open) => !open)}
+            style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              border: 'none',
+              background: '#475569',
+              color: '#f8fafc',
+              fontSize: '12px',
+              lineHeight: '20px',
+              textAlign: 'center',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+              pointerEvents: 'auto'
+            }}
+            title="Manage ignored values and rules"
+          >
+            ⚙️
+          </button>
+          <button
+            ref={scanRefs.setReference}
+            type="button"
+            onClick={() => setIsScanOpen((open) => !open)}
+            style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              border: 'none',
+              background: '#2563eb',
+              color: '#f8fafc',
+              fontSize: '10px',
+              lineHeight: '20px',
+              textAlign: 'center',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+              pointerEvents: 'auto'
+            }}
+            title="Scan for sensitive text"
+          >
+            ✦
+          </button>
+        </div>
       ) : null}
+      {managementPanel}
       {piiPopover}
       {scanPopover}
     </>

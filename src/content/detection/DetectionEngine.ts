@@ -1,60 +1,60 @@
 import { error, log } from '../../shared/logger'
 import { BaseDetector, type DetectionInput } from './detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
+import { UserRuleDetector } from './detectors/UserRuleDetector'
 
 export class DetectionEngine {
   private detectors: BaseDetector[]
-  private manualMatches: DetectionMatch[] = []
-  private readonly MANUAL_DETECTOR_IDS = new Set(['gemini-detector'])
   private isRunning = false
+
+  private geminiCache = new Map<string, { type: string, source: string, priority: number }>()
+  private ignoredValues = new Set<string>()
 
   constructor(detectors: BaseDetector[] = []) {
     this.detectors = [...detectors]
   }
 
-  setDetectors(detectors: BaseDetector[]): void {
-    this.detectors = [...detectors]
+  // --- Public API for managing state ---
+
+  public ignoreMatch(value: string): void {
+    this.ignoredValues.add(value)
+    log('Match value ignored', { value })
   }
 
-  addDetector(detector: BaseDetector): void {
-    this.detectors.push(detector)
+  public unignoreMatch(value: string): void {
+    this.ignoredValues.delete(value)
+    log('Match value unignored', { value })
   }
 
-  getDetectors(): BaseDetector[] {
-    return [...this.detectors]
-  }
-
-  private isManualDetectorMatch = (match: DetectionMatch): boolean => {
-    return this.MANUAL_DETECTOR_IDS.has(match.detectorId)
-  }
-
-  private remapManualMatches(text: string): DetectionMatch[] {
-    const remapped: DetectionMatch[] = []
-    for (const oldMatch of this.manualMatches) {
-      const searchTerm = oldMatch.match
-      if (!searchTerm) continue
-
-      let currentIndex = -1
-      while ((currentIndex = text.indexOf(searchTerm, currentIndex + 1)) !== -1) {
-        remapped.push({
-          ...oldMatch,
-          startIndex: currentIndex,
-          endIndex: currentIndex + searchTerm.length,
-        })
-      }
+  public addUserRule(pattern: string): void {
+    const userDetector = this.detectors.find(
+      (d): d is UserRuleDetector => d instanceof UserRuleDetector,
+    )
+    if (userDetector) {
+      userDetector.addRule(pattern)
+      log('User rule added', { pattern })
+    } else {
+      error('UserRuleDetector not found in engine')
     }
-
-    // Deduplicate the remapped matches to prevent exponential growth of the cache.
-    const uniqueRemapped = new Map<number, DetectionMatch>()
-    for (const match of remapped) {
-      // Using startIndex as the key ensures that we only have one match per position.
-      if (!uniqueRemapped.has(match.startIndex)) {
-        uniqueRemapped.set(match.startIndex, match)
-      }
-    }
-
-    return Array.from(uniqueRemapped.values())
   }
+
+  public removeUserRule(pattern: string): void {
+    const userDetector = this.detectors.find(
+      (d): d is UserRuleDetector => d instanceof UserRuleDetector,
+    )
+    if (userDetector) {
+      userDetector.removeRule(pattern)
+      log('User rule removed', { pattern })
+    } else {
+      error('UserRuleDetector not found in engine')
+    }
+  }
+
+  public getIgnoredValues(): string[] {
+    return Array.from(this.ignoredValues)
+  }
+
+  // --- Core detection logic ---
 
   async run(input: DetectionInput): Promise<DetectionMatch[]> {
     if (this.isRunning) {
@@ -69,98 +69,90 @@ export class DetectionEngine {
         trigger: input.trigger ?? 'auto',
       }
 
-      let allMatches: DetectionMatch[] = []
+      // 1. Create a temporary dictionary for this run, starting with cached results.
+      const currentPiiDictionary = new Map(this.geminiCache)
 
-      if (enrichedInput.trigger === 'manual') {
-        // Run ALL detectors for manual scan
-        for (const detector of this.detectors) {
-          try {
-            const matches = await detector.detect(enrichedInput)
-            const matchesWithId = matches.map((m) => ({
-              ...m,
-              detectorId: m.detectorId ?? detector.id,
-            }))
-            allMatches.push(...matchesWithId)
-          } catch (err) {
-            error('Detector execution failed', {
-              detectorId: detector.id,
-              message: err instanceof Error ? err.message : String(err),
-            })
+      // 2. Run dynamic detectors (Regex, User Rules) and update the dictionary.
+      const dynamicDetectors = this.detectors.filter(d => d.id !== 'gemini-detector')
+      for (const detector of dynamicDetectors) {
+        try {
+          const matches = await detector.detect(enrichedInput);
+          for (const match of matches) {
+            // Add or overwrite with higher priority results from live detectors
+            if (!currentPiiDictionary.has(match.match) || match.priority > (currentPiiDictionary.get(match.match)?.priority ?? -1)) {
+                currentPiiDictionary.set(match.match, { type: match.entityType, source: match.source, priority: match.priority })
+            }
           }
+        } catch (err) {
+          error('Detector execution failed', { detectorId: detector.id, message: String(err) })
         }
-        // Cache the manual results from this run
-        this.manualMatches = allMatches.filter(this.isManualDetectorMatch)
-      } else if (enrichedInput.trigger === 'auto') {
-        // Run only AUTOMATIC detectors
-        const automaticDetectors = this.detectors.filter(
-          (d) => !this.MANUAL_DETECTOR_IDS.has(d.id),
-        )
-        let automaticMatches: DetectionMatch[] = []
-        for (const detector of automaticDetectors) {
-          try {
-            const matches = await detector.detect(enrichedInput)
-            const matchesWithId = matches.map((m) => ({
-              ...m,
-              detectorId: m.detectorId ?? detector.id,
-            }))
-            automaticMatches.push(...matchesWithId)
-          } catch (err) {
-            error('Detector execution failed', {
-              detectorId: detector.id,
-              message: err instanceof Error ? err.message : String(err),
-            })
-          }
-        }
-
-        // Remap previously found manual matches to the new text
-        const remappedManualMatches = this.remapManualMatches(
-          enrichedInput.value,
-        )
-        // Update the cache with the remapped matches
-        this.manualMatches = remappedManualMatches
-
-        // Combine automatic and remapped manual matches
-        allMatches = [...automaticMatches, ...remappedManualMatches]
       }
 
-      if (allMatches.length === 0) {
+      // 3. If manual trigger, run Gemini and update the cache.
+      if (enrichedInput.trigger === 'manual') {
+        const geminiDetector = this.detectors.find(d => d.id === 'gemini-detector')
+        if (geminiDetector) {
+          try {
+            const matches = await geminiDetector.detect(enrichedInput);
+            for (const match of matches) {
+              // Add to both the current dictionary and the long-term cache
+              const newMeta = { type: match.entityType, source: match.source, priority: match.priority }
+              currentPiiDictionary.set(match.match, newMeta)
+              this.geminiCache.set(match.match, newMeta)
+            }
+          } catch (err) {
+            error('Detector execution failed', { detectorId: geminiDetector.id, message: String(err) })
+          }
+        }
+      }
+
+      // 4. Find all occurrences of all known PII from the dictionary
+      let allFoundMatches: DetectionMatch[] = []
+      for (const [value, meta] of currentPiiDictionary.entries()) {
+        if (this.ignoredValues.has(value)) {
+          continue;
+        }
+
+        let currentIndex = -1;
+        while ((currentIndex = enrichedInput.value.indexOf(value, currentIndex + 1)) !== -1) {
+          const match: DetectionMatch = {
+            detectorId: meta.source,
+            source: meta.source as any,
+            entityType: meta.type as any,
+            priority: meta.priority,
+            match: value,
+            startIndex: currentIndex,
+            endIndex: currentIndex + value.length,
+          }
+          allFoundMatches.push(match)
+        }
+      }
+
+      if (allFoundMatches.length === 0) {
         return []
       }
 
-      // Sort all matches by priority (descending)
-      allMatches.sort((a, b) => b.priority - a.priority)
-
-      // Resolve overlaps
+      // 5. Resolve overlaps
+      allFoundMatches.sort((a, b) => b.priority - a.priority)
       const finalMatches: DetectionMatch[] = []
-      const isOverlapping = (
-        matchA: DetectionMatch,
-        matchB: DetectionMatch,
-      ): boolean => {
-        return (
-          Math.max(matchA.startIndex, matchB.startIndex) <
-          Math.min(matchA.endIndex, matchB.endIndex)
-        )
+      const isOverlapping = (matchA: DetectionMatch, matchB: DetectionMatch): boolean => {
+        return Math.max(matchA.startIndex, matchB.startIndex) < Math.min(matchA.endIndex, matchB.endIndex)
       }
 
-      for (const currentMatch of allMatches) {
-        // Check if the current match overlaps with any of the already accepted final matches
-        const hasOverlap = finalMatches.some((finalMatch) =>
-          isOverlapping(currentMatch, finalMatch),
-        )
-
-        if (!hasOverlap) {
+      for (const currentMatch of allFoundMatches) {
+        if (!finalMatches.some((finalMatch) => isOverlapping(currentMatch, finalMatch))) {
           finalMatches.push(currentMatch)
         }
       }
 
-      // Sort by startIndex (ascending)
+      // 6. Final sort and log
       finalMatches.sort((a, b) => a.startIndex - b.startIndex)
 
       if (finalMatches.length > 0) {
         log('DetectionEngine matches', {
           filterId: enrichedInput.context.filterId,
           fieldIndex: enrichedInput.context.fieldIndex,
-          matches: finalMatches,
+          count: finalMatches.length,
         })
       }
 

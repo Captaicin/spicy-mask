@@ -35,7 +35,8 @@
 | `FormMirrorManager.ts`     | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다.                                                                                                      |
 | `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. `DetectionEngine`으로부터 최종 탐지 결과를 받아 하이라이트 및 마스킹 동작을 orchestration합니다.              |
 | `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다. |
-| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션을 제공하는 React UI 레이어입니다. "Start Scan" 도구 팝오버, "Scanning..." 상태 등을 렌더링하며, 스캔 후에는 탐지된 모든 PII의 종류와 개수를 종합하여 보여줍니다(예: "전화번호: 2"). 팝업 위치 계산은 `@floating-ui/react`를 사용하여 안정성을 높였고, `React.createPortal`을 통해 팝업이 잘리는 현상을 해결했습니다. 개선된 팝업 닫기 동작 등으로 안정적인 사용자 경험을 제공합니다. |
+| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션, 스캔 도구, PII 관리 패널을 제공하는 React UI 레이어입니다. 팝업 위치 계산은 `@floating-ui/react`를 사용하고, `React.createPortal`을 통해 다른 UI에 가려지지 않도록 처리합니다. |
+| `ManagementPanel.tsx`      | 현재 탐지된 PII, 무시된 값, 사용자 정의 규칙을 보고 관리(무시, 복원, 추가, 제거)하는 UI 컴포넌트입니다.                                                                     |
 | `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
 
 ### 필터 구현
@@ -50,13 +51,14 @@
 
 | 경로 | 설명 |
 | --- | --- |
-| `DetectionEngine.ts` | 등록된 모든 `BaseDetector`에서 감지 결과를 수집하고, `priority`를 기반으로 겹치는(overlap) 결과를 처리합니다. 또한, 수동 탐지 결과를 내부적으로 캐시하고, 텍스트 변경 시(`'auto'` 트리거) 위치를 재계산하여 자동 탐지 결과와 병합하는 상태 관리 역할도 수행합니다. |
+| `DetectionEngine.ts` | 모든 탐지기를 실행하고, 세션 동안 발견된 모든 고유 PII를 '사전' 형태로 기억하여 캐시로 활용합니다. 또한, 사용자가 무시한 값의 목록을 관리합니다. |
 | `detectors/BaseDetector.ts` | 모든 감지기의 기본 클래스. `detect` 메서드와 공통 입력 타입(`DetectionInput`)을 정의합니다. |
 | `detectors/RegexDetector.ts` | 다중 정규식 패턴을 사용해 PII(개인 식별 정보)를 탐지하는 엔진입니다. 자체적으로 패턴 우선순위에 따라 결과를 처리하고, 신용카드 번호의 경우 Luhn 알고리즘으로 유효성을 검증하여 정확도를 높입니다. |
+| `detectors/UserRuleDetector.ts` | 사용자가 직접 추가한 텍스트 패턴(규칙)과 일치하는 모든 문자열을 탐지합니다. |
 | `detectors/pii/piiPatterns.ts` | `RegexDetector`가 사용하는 PII 정규식 패턴, 우선순위, 유효성 검증 로직(Luhn 알고리즘)을 정의합니다. |
 | `detectors/GeminiDetector.ts` | 백그라운드 Gemini 서비스를 호출하여 텍스트 내의 문맥적 PII(이름, 주소 등)를 탐지합니다. 서비스로부터 PII 후보값을 받은 후, "findall" 로직을 통해 텍스트 내 모든 일치 항목의 위치를 찾아 최종 `DetectionMatch` 객체를 생성합니다. |
 | `detectors/geminiClient.ts` | `GeminiDetector`와 `background` 서비스 간의 통신을 담당하는 얇은 클라이언트입니다. `sendMessage` API 호출을 추상화하고, `RUN_GEMINI_PII_ANALYSIS` 메시지를 전송합니다. |
-| `detectors/index.ts` | `DetectionEngine`에 사용될 기본 감지기(`RegexDetector`, `GeminiDetector`)를 구성하고 내보냅니다. |
+| `detectors/index.ts` | `DetectionEngine`에 사용될 기본 감지기(`RegexDetector`, `GeminiDetector`, `UserRuleDetector`)를 구성하고 내보냅니다. |
 | `index.ts` | `DetectionEngine` 싱글턴 인스턴스를 생성하고 내보냅니다. |
 
 ## 마스킹(`masking/`)

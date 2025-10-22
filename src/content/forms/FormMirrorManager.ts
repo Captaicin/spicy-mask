@@ -4,6 +4,7 @@ import { createOverlayShadow, type ShadowOverlay } from '../../shared/dom'
 import { MIRROR_OVERLAY_PREFIX } from '../../shared/constants'
 import type { FormElement } from './FormFilter'
 import MirrorField from './MirrorField'
+import { uiContainerRegistry } from '../uiRegistry'
 
 type MirrorInstance = {
   element: FormElement
@@ -50,6 +51,8 @@ export class FormMirrorManager {
   private createInstance(element: FormElement): MirrorInstance {
     const overlayId = `${MIRROR_OVERLAY_PREFIX}-${++this.counter}`
     const overlay = createOverlayShadow(overlayId)
+    uiContainerRegistry.add(overlay.host) // Register host
+
     const container = document.createElement('div')
     overlay.shadow.appendChild(container)
     const root = createRoot(container)
@@ -69,6 +72,7 @@ export class FormMirrorManager {
 
   private teardownInstance(instance: MirrorInstance): void {
     instance.root.unmount()
+    uiContainerRegistry.delete(instance.overlay.host) // Unregister host
     instance.overlay.destroy()
   }
 }

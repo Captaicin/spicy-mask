@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { log, warn } from '../../shared/logger'
 import type { FormElement } from './FormFilter'
-import { detectionEngine } from '../detection'
+import { detectionEngine, userRuleDetector } from '../detection'
 import {
   type DetectionContext,
   type DetectionTrigger,
 } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
-import { TargetHighlighter } from './TargetHighlighter'
+import { TargetHighlighter, type TargetHighlighterCallbacks } from './TargetHighlighter'
 import { maskValueWithMatches, maskContentEditableNodes } from '../masking'
 import { extractTextWithMapping, type TextNodeMapping } from '../../shared/dom'
 
@@ -95,6 +95,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   const [closeSignal, setCloseSignal] = useState(0)
   const [plainText, setPlainText] = useState<string | null>(null)
   const [mappings, setMappings] = useState<TextNodeMapping[] | null>(null)
+
+  const [ignoredValues, setIgnoredValues] = useState<string[]>([])
+  const [userRules, setUserRules] = useState<string[]>([])
+
   const highlighterRef = useRef<TargetHighlighter | null>(null)
   const detectionContext = useMemo<DetectionContext>(
     () => ({
@@ -143,9 +147,14 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         }
 
         setMatches(results)
-        // TODO: 입력창 사이즈 변경 감지하여 스마트하게 처리하기 (현재는 200ms 지연으로 하드코딩)
+
+        const currentIgnored = detectionEngine.getIgnoredValues()
+        const currentRules = userRuleDetector.getRules()
+        setIgnoredValues(currentIgnored)
+        setUserRules(currentRules)
+
         setTimeout(() => {
-          highlighterRef.current?.update(nextValue, results, mappings, { trigger })
+          highlighterRef.current?.update(nextValue, results, mappings, currentIgnored, currentRules, { trigger })
         }, 200);
       } catch (err) {
         warn('Detection run failed', {
@@ -215,29 +224,54 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     [filterId, index, target, mappings, value],
   )
 
-  const handleMaskSegment = useCallback(
-    ({ matches: selectedMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
-      applyMask(selectedMatches)
-    },
-    [applyMask],
-  )
+  const callbacksRef = useRef<TargetHighlighterCallbacks>({})
 
-  const handleMaskAll = useCallback(
-    ({ matches: allMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
-      applyMask(allMatches)
-    },
-    [applyMask],
-  )
-
-  const handleRequestScan = useCallback(() => {
-    const textToScan = isContentEditableElement(target) ? plainText : value;
-    if (textToScan === null) return;
-    void runDetection(textToScan, { trigger: 'manual' })
-  }, [runDetection, plainText, value, target])
-
-  const handleContentScroll = useCallback(() => {
-    highlighterRef.current?.update(valueRef.current, matchesRef.current, mappingsRef.current)
-  }, [])
+  callbacksRef.current = {
+    onMaskSegment: useCallback(
+      ({ matches: selectedMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
+        applyMask(selectedMatches)
+      },
+      [applyMask],
+    ),
+    onMaskAll: useCallback(
+      ({ matches: allMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
+        applyMask(allMatches)
+      },
+      [applyMask],
+    ),
+    onIgnoreValue: useCallback((valueToIgnore: string) => {
+      detectionEngine.ignoreMatch(valueToIgnore);
+      const textToScan = isContentEditableElement(target) ? plainText : value;
+      if (textToScan === null) return;
+      void runDetection(textToScan, { trigger: 'auto' })
+    }, [runDetection, plainText, value, target]),
+    onUnignore: useCallback((valueToUnignore: string) => {
+      detectionEngine.unignoreMatch(valueToUnignore);
+      const textToScan = isContentEditableElement(target) ? plainText : value;
+      if (textToScan === null) return;
+      void runDetection(textToScan, { trigger: 'auto' })
+    }, [runDetection, plainText, value, target]),
+    onAddRule: useCallback((ruleToAdd: string) => {
+      detectionEngine.addUserRule(ruleToAdd);
+      const textToScan = isContentEditableElement(target) ? plainText : value;
+      if (textToScan === null) return;
+      void runDetection(textToScan, { trigger: 'auto' })
+    }, [runDetection, plainText, value, target]),
+    onRemoveRule: useCallback((ruleToRemove: string) => {
+      detectionEngine.removeUserRule(ruleToRemove);
+      const textToScan = isContentEditableElement(target) ? plainText : value;
+      if (textToScan === null) return;
+      void runDetection(textToScan, { trigger: 'auto' })
+    }, [runDetection, plainText, value, target]),
+    onRequestScan: useCallback(() => {
+      const textToScan = isContentEditableElement(target) ? plainText : value;
+      if (textToScan === null) return;
+      void runDetection(textToScan, { trigger: 'manual' })
+    }, [runDetection, plainText, value, target]),
+    onContentScroll: useCallback(() => {
+      highlighterRef.current?.update(valueRef.current, matchesRef.current, mappingsRef.current, ignoredValues, userRules)
+    }, [ignoredValues, userRules]),
+  }
 
   useEffect(() => {
     if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
@@ -245,10 +279,14 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     }
 
     const highlighter = new TargetHighlighter(target, detectionContext, {
-      onMaskSegment: handleMaskSegment,
-      onMaskAll: handleMaskAll,
-      onRequestScan: handleRequestScan,
-      onContentScroll: handleContentScroll,
+      onMaskSegment: (...args) => callbacksRef.current.onMaskSegment?.(...args),
+      onMaskAll: (...args) => callbacksRef.current.onMaskAll?.(...args),
+      onIgnoreValue: (...args) => callbacksRef.current.onIgnoreValue?.(...args),
+      onUnignore: (...args) => callbacksRef.current.onUnignore?.(...args),
+      onAddRule: (...args) => callbacksRef.current.onAddRule?.(...args),
+      onRemoveRule: (...args) => callbacksRef.current.onRemoveRule?.(...args),
+      onRequestScan: (...args) => callbacksRef.current.onRequestScan?.(...args),
+      onContentScroll: (...args) => callbacksRef.current.onContentScroll?.(...args),
     })
     highlighterRef.current = highlighter
 
@@ -256,13 +294,13 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       highlighter.destroy()
       highlighterRef.current = null
     }
-  }, [target, detectionContext, handleMaskSegment, handleMaskAll, handleRequestScan, handleContentScroll])
+  }, [target, detectionContext])
 
   useEffect(() => {
     const textToScan = isContentEditableElement(target) ? plainText : value;
 
     if (textToScan === null) {
-      return;
+      return
     }
     
     void runDetection(textToScan, { trigger: 'auto' });

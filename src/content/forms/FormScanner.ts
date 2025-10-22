@@ -1,4 +1,5 @@
 import type { FormElement } from './FormFilter'
+import { uiContainerRegistry } from '../uiRegistry'
 
 const SELECTOR = 'input, textarea, select, [contenteditable]'
 const CONTENTEDITABLE_SELECTOR = '[contenteditable]'
@@ -11,6 +12,13 @@ export class FormScanner {
   }
 
   private isEligible(element: Element): element is FormElement {
+    // Do not scan elements that are part of our own UI.
+    for (const container of uiContainerRegistry) {
+      if (container.contains(element)) {
+        return false
+      }
+    }
+
     if (element instanceof HTMLInputElement) {
       // Skip hidden elements and buttons.
       const type = element.type

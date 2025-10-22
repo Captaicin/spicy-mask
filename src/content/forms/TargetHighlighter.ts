@@ -25,10 +25,14 @@ const getScrollableAncestors = (element: HTMLElement): HTMLElement[] => {
   return ancestors
 }
 
-type TargetHighlighterCallbacks = {
+export type TargetHighlighterCallbacks = {
   onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
   onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+  onIgnoreValue?: (value: string) => void
+  onUnignore?: (value: string) => void
+  onAddRule?: (rule: string) => void
+  onRemoveRule?: (rule: string) => void
   onRequestScan?: () => void
   onContentScroll?: () => void
 }
@@ -48,8 +52,12 @@ export class TargetHighlighter {
   private layoutRafId: number | null = null
   private updateRafId: number | null = null
   private destroyed = false
+
+  // State passed to UI
   private currentValue = ''
   private currentMatches: DetectionMatch[] = []
+  private currentIgnoredValues: string[] = []
+  private currentUserRules: string[] = []
   private closeSignal = 0
   private hasValue = false
   private latestTrigger: DetectionTrigger = 'auto'
@@ -88,7 +96,14 @@ export class TargetHighlighter {
     this.attachObservers()
   }
 
-  update(value: string, matches: DetectionMatch[], mappings: TextNodeMapping[] | null, meta: { trigger?: DetectionTrigger } = {}): void {
+  update(
+    value: string,
+    matches: DetectionMatch[],
+    mappings: TextNodeMapping[] | null,
+    ignoredValues: string[],
+    userRules: string[],
+    meta: { trigger?: DetectionTrigger } = {},
+  ): void {
     if (this.destroyed) {
       return
     }
@@ -100,6 +115,8 @@ export class TargetHighlighter {
     this.updateRafId = requestAnimationFrame(() => {
       this.currentValue = value
       this.currentMatches = matches
+      this.currentIgnoredValues = ignoredValues;
+      this.currentUserRules = userRules;
       this.hasValue = typeof value === 'string' && value.length > 0
       this.latestTrigger = meta.trigger ?? 'auto'
 
@@ -330,14 +347,20 @@ export class TargetHighlighter {
         containerRect: this.container.getBoundingClientRect(),
         target: this.target,
         context: this.context,
+        allMatches: this.currentMatches,
+        ignoredValues: this.currentIgnoredValues,
+        userRules: this.currentUserRules,
         onMaskSegment: this.callbacks.onMaskSegment,
         onMaskAll: this.callbacks.onMaskAll,
         onFocusMatch: this.callbacks.onFocusMatch,
+        onIgnoreValue: this.callbacks.onIgnoreValue,
+        onUnignore: this.callbacks.onUnignore,
+        onAddRule: this.callbacks.onAddRule,
+        onRemoveRule: this.callbacks.onRemoveRule,
         onRequestScan: this.callbacks.onRequestScan,
         closeSignal: this.closeSignal,
         showScanButton,
         latestTrigger: this.latestTrigger,
-        allMatches: this.currentMatches
       })
     )
   }

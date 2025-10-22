@@ -11,18 +11,17 @@ declare global {
   };
 }
 
-export type DetectorSource = 'regex' | 'gemini';
+export type DetectorSource = 'regex' | 'gemini' | 'user';
 
-export type RegexEntityType = 
+export type RegexEntityType =
   | 'email'
   | 'phone_number'
   | 'credit_card_number'
   | 'social_security_number';
 
-export type GeminiEntityType =
-  | 'email'
-  | 'phone_number'
-  | 'contextual_pii';
+export type GeminiEntityType = 'email' | 'phone_number' | 'contextual_pii';
+
+export type UserEntityType = 'user_defined_pii';
 
 interface BaseDetectionMatch {
   detectorId: string
@@ -43,7 +42,15 @@ interface GeminiDetectionMatch extends BaseDetectionMatch {
   entityType: GeminiEntityType
 }
 
-export type DetectionMatch = RegexDetectionMatch | GeminiDetectionMatch;
+interface UserDetectionMatch extends BaseDetectionMatch {
+  source: 'user'
+  entityType: UserEntityType
+}
+
+export type DetectionMatch =
+  | RegexDetectionMatch
+  | GeminiDetectionMatch
+  | UserDetectionMatch
 
 export interface GeminiApiResult {
   value: string

@@ -7,6 +7,7 @@ Spicy Mask is an on-device AI security extension that intelligently prevents per
 - **Phishing Page Detection:** Analyzes the full text content of the currently visited web page to determine its phishing risk level.
 - **Personally Identifiable Information (PII) Input Detection & Masking Suggestion:** Real-time detection of PII in text entered by the user into `<input>`, `<textarea>`, or `contenteditable` fields.
 - **Context-Aware Decision Engine:** Combines the phishing detection results and PII input detection results to determine the final user warning/suggestion action.
+- **PII Management Panel:** Provides an in-context UI to view all detected PII, manage session-level ignored values, and add or remove custom PII detection rules.
 
 ## Usage
 
@@ -64,17 +65,19 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
       - `FormScanner.ts`: DOM scanner for eligible elements.
       - `MirrorField.tsx`: React mirror UI with detection/masking integration.
       - `TargetHighlighter.ts`: A core class that creates and synchronizes a highlight overlay on top of a target field. It uses `ResizeObserver`, `MutationObserver`, and tracks scrollable parent elements to precisely detect changes in the original field's size, position, style, and scroll state, updating the overlay without visual inconsistencies via `requestAnimationFrame`.
-      - `TextHighlightOverlay.tsx`: A React UI layer that visualizes detected text and provides masking actions. It renders key UI elements like the "Start Scan" tool popover and a "Scanning..." state.
+      - `TextHighlightOverlay.tsx`: A React UI layer that visualizes detected text and provides masking actions, a scan tool, and the PII management panel.
+      - `ManagementPanel.tsx`: A UI for viewing and managing detected PII, ignored values, and adding/removing user-defined rules.
       - `filters/`
         - `index.ts`: Barrel exports for filter implementations.
         - `AllFormFilter.ts`, `TextFormFilter.ts`, `MockFormFilter.ts`: Built-in filter strategies.
     - `detection/`
-      - `DetectionEngine.ts`: Runs all detectors and resolves overlaps using a priority-based system.
+      - `DetectionEngine.ts`: Runs all detectors, maintains a session-wide "PII Dictionary" of all unique values found (providing a robust cache), and manages ignored values.
       - `index.ts`: Detection engine entry/export.
       - `detectors/`
         - `BaseDetector.ts`: Shared detector contracts.
         - `GeminiDetector.ts`: Receives raw PII suggestions from the background service and finds all match indices in the text.
         - `RegexDetector.ts`: High-precision PII engine using multiple prioritized patterns.
+        - `UserRuleDetector.ts`: Detects all occurrences of user-defined PII patterns.
         - `geminiClient.ts`: Thin messaging client for `RUN_GEMINI_PII_ANALYSIS`.
         - `index.ts`: Registers default detectors.
         - `pii/piiPatterns.ts`: Defines PII patterns, priorities, and validation logic for the `RegexDetector`.
