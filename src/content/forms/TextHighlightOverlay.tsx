@@ -1,26 +1,20 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState
-} from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   useFloating,
   autoUpdate,
   offset,
   flip,
-  shift
+  shift,
 } from '@floating-ui/react'
-import type { DetectionContext, DetectionTrigger } from '../detection/detectors/BaseDetector'
+import type {
+  DetectionContext,
+  DetectionTrigger,
+} from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
 import { ManagementPanel } from './ManagementPanel'
 import { uiContainerRegistry } from '../uiRegistry'
-
-const HIGHLIGHT_COLOR = 'rgba(252, 211, 77, 0.6)'
-const POPOVER_WIDTH = 220
-const HOVER_DELAY_MS = 500
-const HIDE_DELAY_MS = 300
+import * as tokens from '../../styles/designTokens'
 
 interface PiiDetail {
   pii: DetectionMatch
@@ -35,9 +29,18 @@ interface HighlightOverlayProps {
   context: DetectionContext
   ignoredValues: string[]
   userRules: string[]
-  onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
-  onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
-  onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+  onMaskSegment?: (payload: {
+    matches: DetectionMatch[]
+    context: DetectionContext
+  }) => void
+  onMaskAll?: (payload: {
+    matches: DetectionMatch[]
+    context: DetectionContext
+  }) => void
+  onFocusMatch?: (payload: {
+    match: DetectionMatch
+    context: DetectionContext
+  }) => void
   onIgnoreValue?: (value: string) => void
   onUnignore?: (value: string) => void
   onAddRule?: (rule: string) => void
@@ -53,21 +56,31 @@ interface ActivePii {
   anchorRect: DOMRect
 }
 
-const summarizeMatches = (matches: DetectionMatch[]): Record<string, number> => {
+const HIGHLIGHT_COLOR = tokens.colors.highlightBackground
+const POPOVER_WIDTH = 220
+const HOVER_DELAY_MS = 500
+const HIDE_DELAY_MS = 300
+
+const summarizeMatches = (
+  matches: DetectionMatch[],
+): Record<string, number> => {
   return matches.reduce(
     (acc, match) => {
       const type = match.entityType ?? 'unknown'
       acc[type] = (acc[type] || 0) + 1
       return acc
     },
-    {} as Record<string, number>
+    {} as Record<string, number>,
   )
 }
 
 const focusMatch = (target: HTMLElement, match: DetectionMatch) => {
   target.focus()
 
-  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement
+  ) {
     target.setSelectionRange(match.startIndex, match.endIndex)
   }
 }
@@ -90,7 +103,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   onRequestScan,
   closeSignal,
   showScanButton,
-  latestTrigger
+  latestTrigger,
 }) => {
   const popoverTimerRef = useRef<number | null>(null)
   const runCounterRef = useRef(0)
@@ -102,7 +115,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const [isScanOpen, setIsScanOpen] = useState(false)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [scanPending, setScanPending] = useState(false)
-  const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(null)
+  const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(
+    null,
+  )
 
   const activePii = pinned ?? hovered
 
@@ -112,8 +127,10 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     whileElementsMounted: autoUpdate,
     middleware: [offset(8), flip(), shift({ padding: 8 })],
     elements: {
-      reference: (activePii ? { getBoundingClientRect: () => activePii.anchorRect } : null) as any
-    }
+      reference: (activePii
+        ? { getBoundingClientRect: () => activePii.anchorRect }
+        : null) as any,
+    },
   })
 
   const { refs: scanRefs, floatingStyles: scanFloatingStyles } = useFloating({
@@ -121,7 +138,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     onOpenChange: setIsScanOpen,
     placement: 'top-start',
     whileElementsMounted: autoUpdate,
-    middleware: [offset(8), flip(), shift({ padding: 8 })]
+    middleware: [offset(8), flip(), shift({ padding: 8 })],
   })
 
   const { refs: panelRefs, floatingStyles: panelFloatingStyles } = useFloating({
@@ -129,7 +146,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     onOpenChange: setIsPanelOpen,
     placement: 'bottom-start',
     whileElementsMounted: autoUpdate,
-    middleware: [offset(8), flip(), shift({ padding: 8 })]
+    middleware: [offset(8), flip(), shift({ padding: 8 })],
   })
 
   const panelWrapperRef = useRef<HTMLDivElement>(null)
@@ -170,7 +187,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         setHovered({ pii, anchorRect: rect })
       }, HOVER_DELAY_MS)
     },
-    [pinned, clearPopoverTimer]
+    [pinned, clearPopoverTimer],
   )
 
   const handleInteractionLeave = useCallback(() => {
@@ -195,7 +212,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       setHovered(null)
       setIsScanOpen(false)
     },
-    [context, onFocusMatch, target, clearPopoverTimer]
+    [context, onFocusMatch, target, clearPopoverTimer],
   )
 
   useEffect(() => {
@@ -210,7 +227,11 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
     const handleClickOutside = (event: MouseEvent) => {
       const targetNode = event.target as Node
-      if (piiRefs.floating.current && !piiRefs.floating.current.contains(targetNode) && !target.contains(targetNode)) {
+      if (
+        piiRefs.floating.current &&
+        !piiRefs.floating.current.contains(targetNode) &&
+        !target.contains(targetNode)
+      ) {
         closePopover()
       }
     }
@@ -270,7 +291,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     }
   }, [isScanOpen, resetScanState])
 
-  const showMaskAllButton = Boolean(scanSummary) && !scanPending && allMatches.length > 0
+  const showMaskAllButton =
+    Boolean(scanSummary) && !scanPending && allMatches.length > 0
 
   const piiPopover = createPortal(
     activePii ? (
@@ -283,12 +305,13 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           width: `${POPOVER_WIDTH}px`,
           pointerEvents: 'auto',
           zIndex: 2147483647,
-          background: '#0f172a',
-          color: '#f8fafc',
-          borderRadius: '10px',
-          boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
-          padding: '12px',
-          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+          background: tokens.colors.backgroundSecondary,
+          color: tokens.colors.textPrimary,
+          borderRadius: tokens.radii.md,
+          boxShadow: tokens.shadows.xl,
+          padding: tokens.spacing.s3,
+          fontFamily: tokens.typography.fontFamilyBase,
+          border: `1px solid ${tokens.colors.border}`,
         }}
       >
         <button
@@ -296,39 +319,49 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           onClick={closePopover}
           style={{
             position: 'absolute',
-            top: '8px',
-            right: '8px',
+            top: tokens.spacing.s2,
+            right: tokens.spacing.s2,
             width: '20px',
             height: '20px',
             border: 'none',
             background: 'transparent',
-            color: '#94a3b8',
-            fontSize: '16px',
+            fontSize: tokens.typography.fontSizeMd,
             lineHeight: '20px',
             textAlign: 'center',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           ×
         </button>
-        <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Detected PII</div>
         <div
           style={{
-            fontSize: '12px',
+            paddingBottom: tokens.spacing.s2,
+            marginBottom: tokens.spacing.s2,
+            borderBottom: `1px solid ${tokens.colors.border}`,
+            fontSize: tokens.typography.fontSizeSm,
+            fontWeight: tokens.typography.fontWeightBold,
+          }}
+        >
+          Detected PII
+        </div>
+        <div
+          style={{
+            fontSize: tokens.typography.fontSizeXs,
             lineHeight: 1.4,
-            background: '#1e293b',
-            padding: '8px',
-            borderRadius: '6px',
-            marginBottom: '10px',
+            padding: tokens.spacing.s2,
+            borderRadius: tokens.radii.sm,
+            marginBottom: tokens.spacing.s3,
             wordBreak: 'break-all',
             display: 'grid',
             gridTemplateColumns: 'auto 1fr',
-            gap: '4px 8px',
-            alignItems: 'start'
+            gap: `${tokens.spacing.s1} ${tokens.spacing.s2}`,
+            alignItems: 'start',
           }}
         >
           <div style={{ opacity: 0.7 }}>Match:</div>
-          <div style={{ fontWeight: 600 }}>{activePii.pii.match}</div>
+          <div style={{ fontWeight: tokens.typography.fontWeightMedium }}>
+            {activePii.pii.match}
+          </div>
 
           <div style={{ opacity: 0.7 }}>Type:</div>
           <div>{activePii.pii.entityType}</div>
@@ -343,14 +376,63 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             </>
           )}
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button type="button" onClick={handleMaskIt} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#f97316', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Mask it</button>
-          <button type="button" onClick={handleIgnore} style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 500, cursor: 'pointer' }}>Ignore</button>
+        <div style={{ display: 'flex', gap: tokens.spacing.s2 }}>
+          <button
+            type="button"
+            onClick={handleMaskIt}
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              borderRadius: tokens.radii.sm,
+              border: 'none',
+              background: tokens.colors.accentGreen,
+              color: tokens.colors.backgroundPrimary,
+              fontWeight: tokens.typography.fontWeightBold,
+              cursor: 'pointer',
+              fontSize: tokens.typography.fontSizeXs,
+            }}
+          >
+            Mask it
+          </button>
+          <button
+            type="button"
+            onClick={handleIgnore}
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              borderRadius: tokens.radii.sm,
+              border: 'none',
+              background: tokens.colors.border,
+              color: tokens.colors.textPrimary,
+              fontWeight: tokens.typography.fontWeightMedium,
+              cursor: 'pointer',
+              fontSize: tokens.typography.fontSizeXs,
+            }}
+          >
+            Ignore
+          </button>
         </div>
-        <button type="button" onClick={handleMaskAll} style={{ width: '100%', marginTop: '8px', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
+        <button
+          type="button"
+          onClick={handleMaskAll}
+          style={{
+            width: '100%',
+            marginTop: tokens.spacing.s2,
+            padding: '6px 10px',
+            borderRadius: tokens.radii.sm,
+            border: 'none',
+            background: tokens.colors.border,
+            color: tokens.colors.textPrimary,
+            fontWeight: tokens.typography.fontWeightMedium,
+            cursor: 'pointer',
+            fontSize: tokens.typography.fontSizeXs,
+          }}
+        >
+          Mask all
+        </button>
       </div>
     ) : null,
-    document.body
+    document.body,
   )
 
   const scanPopover = createPortal(
@@ -360,16 +442,17 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         style={{
           ...scanFloatingStyles,
           width: '180px',
-          padding: '12px',
-          borderRadius: '10px',
-          background: '#0f172a',
-          color: '#f8fafc',
-          boxShadow: '0 12px 30px rgba(15, 23, 42, 0.35)',
+          padding: tokens.spacing.s3,
+          borderRadius: tokens.radii.md,
+          background: tokens.colors.backgroundSecondary,
+          color: tokens.colors.textPrimary,
+          boxShadow: tokens.shadows.xl,
+          border: `1px solid ${tokens.colors.border}`,
           pointerEvents: 'auto',
-          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontFamily: tokens.typography.fontFamilyBase,
           zIndex: 2147483647,
           maxHeight: '400px',
-          overflowY: 'auto'
+          overflowY: 'auto',
         }}
       >
         <button
@@ -377,40 +460,72 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           onClick={() => setIsScanOpen(false)}
           style={{
             position: 'absolute',
-            top: '8px',
-            right: '8px',
+            top: tokens.spacing.s2,
+            right: tokens.spacing.s2,
             width: '20px',
             height: '20px',
             border: 'none',
             background: 'transparent',
-            color: '#94a3b8',
-            fontSize: '16px',
+            fontSize: tokens.typography.fontSizeMd,
             lineHeight: '20px',
             textAlign: 'center',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           ×
         </button>
-        <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '10px' }}>Scan Tools</div>
-        <button type="button" onClick={handleStartScan} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: 'none', background: '#22c55e', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}>Start Scan</button>
         <div
           style={{
-            marginTop: '12px',
-            fontSize: '12px',
-            color: '#cbd5f5',
+            paddingBottom: tokens.spacing.s2,
+            marginBottom: tokens.spacing.s2,
+            borderBottom: `1px solid ${tokens.colors.border}`,
+            fontSize: tokens.typography.fontSizeSm,
+            fontWeight: tokens.typography.fontWeightBold,
+          }}
+        >
+          Scan Tools
+        </div>
+        <button
+          type="button"
+          onClick={handleStartScan}
+          style={{
+            width: '100%',
+            padding: '6px 10px',
+            borderRadius: tokens.radii.sm,
+            border: 'none',
+            background: tokens.colors.accentGreen,
+            color: tokens.colors.backgroundPrimary,
+            fontWeight: tokens.typography.fontWeightBold,
+            cursor: 'pointer',
+            fontSize: tokens.typography.fontSizeXs,
+          }}
+        >
+          Start Scan
+        </button>
+        <div
+          style={{
+            marginTop: tokens.spacing.s3,
+            fontSize: tokens.typography.fontSizeXs,
+            color: tokens.colors.textSecondary,
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
           }}
         >
           {scanPending && !scanSummary ? (
             <span>Scanning…</span>
           ) : scanSummary ? (
             <>
-              <span style={{ fontWeight: 600 }}>Results</span>
+              <span
+                style={{
+                  fontWeight: tokens.typography.fontWeightBold,
+                  color: tokens.colors.textPrimary,
+                }}
+              >
+                Results
+              </span>
               {Object.entries(scanSummary).length > 0 ? (
                 Object.entries(scanSummary).map(([type, count]) => (
-                  <span key={type} style={{ marginLeft: '8px' }}>
+                  <span key={type} style={{ marginLeft: tokens.spacing.s2 }}>
                     • {type}: {count}
                   </span>
                 ))
@@ -423,11 +538,27 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           )}
         </div>
         {showMaskAllButton ? (
-          <button type="button" onClick={handleMaskAll} style={{ width: '100%', marginTop: '10px', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(248, 250, 252, 0.4)', background: 'transparent', color: '#f8fafc', fontWeight: 600, cursor: 'pointer' }}>Mask all</button>
+          <button
+            type="button"
+            onClick={handleMaskAll}
+            style={{
+              width: '100%',
+              marginTop: tokens.spacing.s3,
+              padding: tokens.spacing.s2,
+              borderRadius: tokens.radii.sm,
+              border: `1px solid ${tokens.colors.border}`,
+              background: 'transparent',
+              color: tokens.colors.textPrimary,
+              fontWeight: tokens.typography.fontWeightMedium,
+              cursor: 'pointer',
+            }}
+          >
+            Mask all
+          </button>
         ) : null}
       </div>
     ) : null,
-    document.body
+    document.body,
   )
 
   const managementPanel = createPortal(
@@ -440,7 +571,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             zIndex: 2147483647,
           }}
         >
-          <ManagementPanel 
+          <ManagementPanel
             visibleMatches={allMatches}
             ignoredValues={ignoredValues}
             userRules={userRules}
@@ -453,7 +584,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         </div>
       </div>
     ) : null,
-    document.body
+    document.body,
   )
 
   return (
@@ -465,7 +596,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           position: 'absolute',
           inset: 0,
           pointerEvents: 'none',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
         {piiDetails.map(({ pii, rects }) =>
@@ -481,36 +612,44 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                 width: `${rect.width}px`,
                 height: `${rect.height}px`,
                 backgroundColor: HIGHLIGHT_COLOR,
-                borderRadius: '3px',
+                borderRadius: tokens.radii.sm,
                 pointerEvents: 'auto',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             />
-          ))
+          )),
         )}
       </div>
 
       {showScanButton ? (
-        <div style={{ position: 'absolute', right: '8px', bottom: '4px', display: 'flex', gap: '4px' }}>
+        <div
+          style={{
+            position: 'absolute',
+            right: tokens.spacing.s2,
+            bottom: tokens.spacing.s1,
+            display: 'flex',
+            gap: tokens.spacing.s1,
+            pointerEvents: 'auto',
+          }}
+        >
           <button
             ref={panelRefs.setReference}
             type="button"
             onClick={() => setIsPanelOpen((open) => !open)}
             style={{
-              width: '20px',
-              height: '20px',
-              borderRadius: '50%',
-              border: 'none',
-              background: '#475569',
-              color: '#f8fafc',
-              fontSize: '12px',
+              width: '24px',
+              height: '24px',
+              borderRadius: tokens.radii.full,
+              border: `1px solid ${tokens.colors.border}`,
+              background: tokens.colors.backgroundSecondary,
+              color: tokens.colors.textPrimary,
+              fontSize: tokens.typography.fontSizeSm,
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              fontWeight: 700,
+              fontWeight: tokens.typography.fontWeightBold,
               cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
-              pointerEvents: 'auto'
+              boxShadow: tokens.shadows.md,
             }}
             title="Manage ignored values and rules"
           >
@@ -521,19 +660,18 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             type="button"
             onClick={() => setIsScanOpen((open) => !open)}
             style={{
-              width: '20px',
-              height: '20px',
-              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              borderRadius: tokens.radii.full,
               border: 'none',
-              background: '#2563eb',
-              color: '#f8fafc',
-              fontSize: '10px',
-              lineHeight: '20px',
+              background: tokens.colors.textLink,
+              color: tokens.colors.textPrimary,
+              fontSize: tokens.typography.fontSizeXs,
+              lineHeight: '24px',
               textAlign: 'center',
-              fontWeight: 700,
+              fontWeight: tokens.typography.fontWeightBold,
               cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
-              pointerEvents: 'auto'
+              boxShadow: tokens.shadows.md,
             }}
             title="Scan for sensitive text"
           >
