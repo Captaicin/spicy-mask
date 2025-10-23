@@ -50,12 +50,20 @@ export class LargeTextFormFilter extends FormFilter {
       if (this.isDisabledByAria(element)) {
         return false
       }
+      // Only consider a target if it's inside a form, to avoid matching whole page editors.
+      if (!element.closest('form')) {
+        return false
+      }
       return true
     }
 
     const role = element.getAttribute('role')?.toLowerCase()
     if (role === 'textbox') {
       if (this.isDisabledByAria(element)) {
+        return false
+      }
+      // Only consider a target if it's inside a form.
+      if (!element.closest('form')) {
         return false
       }
       return true
