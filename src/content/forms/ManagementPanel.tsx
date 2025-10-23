@@ -12,8 +12,18 @@ interface ManagementPanelProps {
   onClose: () => void
 }
 
+const MIN_WIDTH = 300
+const MAX_WIDTH = 500
+const MAX_HEIGHT = 450
+
+const BASE_HPAD = 0
+const EXTRA_RIGHT_PAD = 8
+
 const panelStyles: React.CSSProperties = {
   width: 'fit-content',
+  minWidth: MIN_WIDTH,
+  maxWidth: MAX_WIDTH,
+  maxHeight: MAX_HEIGHT,
   background: '#1e293b',
   color: '#f8fafc',
   borderRadius: '8px',
@@ -22,26 +32,32 @@ const panelStyles: React.CSSProperties = {
   fontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   fontSize: '12px',
-  display: 'flex',
-  flexDirection: 'column',
-  pointerEvents: 'auto',
-  padding: '8px 10px',
+  display: 'grid',
+  gridTemplateRows: 'auto 1fr',
+  padding: '8px 8px',
   boxSizing: 'border-box',
+  overflow: 'hidden',
+  contain: 'layout style',
 }
 
 const headerStyles: React.CSSProperties = {
-  padding: '8px 12px',
+  padding: '8px 8px',
   fontWeight: 600,
   borderBottom: '1px solid #334155',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  flexShrink: 0,
 }
 
-const contentContainerStyles: React.CSSProperties = {
-  overflow: 'visible',
-  flex: 'none',
+const contentContainerBaseStyles: React.CSSProperties = {
+  minHeight: 0,
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  WebkitOverflowScrolling: 'touch',
+  paddingTop: '4px',
+  paddingBottom: '6px',
+  paddingLeft: `${BASE_HPAD}px`,
+  paddingRight: `${BASE_HPAD}px`,
 }
 
 const listStyles: React.CSSProperties = {
@@ -63,7 +79,7 @@ const itemTextStyles: React.CSSProperties = {
   wordBreak: 'break-all',
   marginRight: '8px',
   opacity: 0.9,
-  minWidth: 0, // Fix for flexbox text wrapping
+  minWidth: 0,
 }
 
 const buttonStyles: React.CSSProperties = {
@@ -147,6 +163,34 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   }, [visibleMatches])
 
   const [newRule, setNewRule] = React.useState('')
+  const contentRef = React.useRef<HTMLDivElement>(null)
+  const [needsScroll, setNeedsScroll] = React.useState(false)
+
+  React.useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+
+    const check = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 1)
+    }
+
+    check()
+
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+
+    const onWinResize = () => check()
+    window.addEventListener('resize', onWinResize)
+
+    if ('fonts' in document && (document as any).fonts?.ready) {
+      ;(document as any).fonts.ready.then(check).catch(() => {})
+    }
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', onWinResize)
+    }
+  }, [visibleMatches, ignoredValues, userRules])
 
   const handleAddRule = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -154,6 +198,12 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
       onAddRule(newRule.trim())
       setNewRule('')
     }
+  }
+
+  const contentContainerStyles: React.CSSProperties = {
+    ...contentContainerBaseStyles,
+    paddingRight: `${BASE_HPAD + (needsScroll ? EXTRA_RIGHT_PAD : 0)}px`,
+    scrollbarGutter: `${needsScroll ? 'stable' : 'auto'}`,
   }
 
   return (
@@ -165,7 +215,7 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
         </button>
       </div>
 
-      <div style={contentContainerStyles}>
+      <div ref={contentRef} style={contentContainerStyles}>
         <ListSection
           title="Detected PII"
           items={detectedPiiValues}
