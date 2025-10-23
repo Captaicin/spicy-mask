@@ -34,7 +34,7 @@ const panelStyles: React.CSSProperties = {
   fontSize: tokens.typography.fontSizeXs,
   display: 'grid',
   gridTemplateRows: 'auto 1fr',
-  padding: tokens.spacing.s2,
+  padding: `${tokens.spacing.s2} 0`,
   boxSizing: 'border-box',
   overflow: 'hidden',
   contain: 'layout style',
@@ -52,7 +52,7 @@ const headerStyles: React.CSSProperties = {
 
 const contentContainerBaseStyles: React.CSSProperties = {
   minHeight: 0,
-  overflowY: 'auto',
+  // overflowY: 'auto',
   overflowX: 'hidden',
   WebkitOverflowScrolling: 'touch',
   paddingTop: tokens.spacing.s1,
@@ -214,6 +214,7 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   const contentContainerStyles: React.CSSProperties = {
     ...contentContainerBaseStyles,
     paddingRight: `${BASE_HPAD + (needsScroll ? EXTRA_RIGHT_PAD : 0)}px`,
+    overflowY: `${needsScroll ? 'auto' : 'hidden'}`,
     scrollbarGutter: `${needsScroll ? 'stable' : 'auto'}`,
   }
 
