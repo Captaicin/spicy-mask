@@ -1,5 +1,6 @@
 import React from 'react'
 import type { DetectionMatch } from '../../shared/types'
+import * as tokens from '../../styles/designTokens'
 
 interface ManagementPanelProps {
   visibleMatches: DetectionMatch[]
@@ -24,26 +25,26 @@ const panelStyles: React.CSSProperties = {
   minWidth: MIN_WIDTH,
   maxWidth: MAX_WIDTH,
   maxHeight: MAX_HEIGHT,
-  background: '#1e293b',
-  color: '#f8fafc',
-  borderRadius: '8px',
-  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.4)',
-  border: '1px solid #334155',
-  fontFamily:
-    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  fontSize: '12px',
+  background: tokens.colors.backgroundSecondary,
+  color: tokens.colors.textPrimary,
+  borderRadius: tokens.radii.md,
+  boxShadow: tokens.shadows.lg,
+  border: `1px solid ${tokens.colors.border}`,
+  fontFamily: tokens.typography.fontFamilyBase,
+  fontSize: tokens.typography.fontSizeXs,
   display: 'grid',
   gridTemplateRows: 'auto 1fr',
-  padding: '8px 8px',
+  padding: tokens.spacing.s2,
   boxSizing: 'border-box',
   overflow: 'hidden',
   contain: 'layout style',
 }
 
 const headerStyles: React.CSSProperties = {
-  padding: '8px 8px',
-  fontWeight: 600,
-  borderBottom: '1px solid #334155',
+  padding: tokens.spacing.s2,
+  fontSize: tokens.typography.fontSizeSm,
+  fontWeight: tokens.typography.fontWeightBold,
+  borderBottom: `1px solid ${tokens.colors.border}`,
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
@@ -54,7 +55,7 @@ const contentContainerBaseStyles: React.CSSProperties = {
   overflowY: 'auto',
   overflowX: 'hidden',
   WebkitOverflowScrolling: 'touch',
-  paddingTop: '4px',
+  paddingTop: tokens.spacing.s1,
   paddingBottom: '6px',
   paddingLeft: `${BASE_HPAD}px`,
   paddingRight: `${BASE_HPAD}px`,
@@ -63,32 +64,34 @@ const contentContainerBaseStyles: React.CSSProperties = {
 const listStyles: React.CSSProperties = {
   listStyle: 'none',
   margin: 0,
-  padding: '8px',
+  padding: tokens.spacing.s2,
 }
 
 const listItemStyles: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  padding: '4px',
-  borderRadius: '4px',
-  marginBottom: '4px',
+  padding: tokens.spacing.s1,
+  borderRadius: tokens.radii.sm,
+  marginBottom: tokens.spacing.s1,
 }
 
 const itemTextStyles: React.CSSProperties = {
   wordBreak: 'break-all',
-  marginRight: '8px',
-  opacity: 0.9,
+  marginRight: tokens.spacing.s2,
+  fontWeight: tokens.typography.fontWeightMedium,
+  // opacity: 0.9,
   minWidth: 0,
 }
 
 const buttonStyles: React.CSSProperties = {
   border: 'none',
-  background: '#334155',
-  color: '#f1f5f9',
-  borderRadius: '4px',
-  padding: '2px 6px',
-  fontSize: '10px',
+  background: tokens.colors.border,
+  color: tokens.colors.textPrimary,
+  borderRadius: tokens.radii.sm,
+  padding: '6px 10px',
+  fontSize: tokens.typography.fontSizeXs,
+  fontWeight: tokens.typography.fontWeightMedium,
   cursor: 'pointer',
   flexShrink: 0,
 }
@@ -96,7 +99,7 @@ const buttonStyles: React.CSSProperties = {
 const closeButtonStyles: React.CSSProperties = {
   ...buttonStyles,
   background: 'transparent',
-  fontSize: '16px',
+  fontSize: tokens.typography.fontSizeMd,
   padding: '0',
   width: '20px',
   height: '20px',
@@ -113,17 +116,25 @@ const ListSection: React.FC<{
   <div>
     <h4
       style={{
-        padding: '4px 8px',
+        padding: `${tokens.spacing.s1} ${tokens.spacing.s2}`,
         margin: '0',
         fontSize: '11px',
-        color: '#94a3b8',
+        color: tokens.colors.textSecondary,
+        fontWeight: tokens.typography.fontWeightNormal,
       }}
     >
       {title} ({items.length})
     </h4>
     {children}
     {items.length === 0 ? (
-      <span style={{ padding: '8px', color: '#64748b', fontSize: '11px' }}>
+      <span
+        style={{
+          padding: tokens.spacing.s2,
+          marginBottom: tokens.spacing.s1,
+          color: tokens.colors.textSecondary,
+          fontSize: '11px',
+        }}
+      >
         None
       </span>
     ) : (
@@ -235,7 +246,11 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
           actionLabel="Remove"
         >
           <div
-            style={{ padding: '0 8px 8px 8px', display: 'flex', gap: '8px' }}
+            style={{
+              padding: `0 ${tokens.spacing.s2} ${tokens.spacing.s2}`,
+              display: 'flex',
+              gap: tokens.spacing.s2,
+            }}
           >
             <input
               type="text"
@@ -245,20 +260,20 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '100%',
-                background: '#293548',
-                border: '1px solid #475569',
-                borderRadius: '4px',
-                color: '#f1f5f9',
-                padding: '4px 8px',
+                background: tokens.colors.backgroundPrimary,
+                border: `1px solid ${tokens.colors.border}`,
+                borderRadius: tokens.radii.sm,
+                color: tokens.colors.textPrimary,
+                padding: `${tokens.spacing.s1} ${tokens.spacing.s2}`,
                 fontSize: '11px',
               }}
             />
             <button
               style={{
                 ...buttonStyles,
-                background: '#22c55e',
-                color: '#1f2937',
-                fontWeight: 600,
+                background: tokens.colors.accentGreen,
+                color: tokens.colors.backgroundPrimary,
+                fontWeight: tokens.typography.fontWeightBold,
               }}
               onClick={handleAddRule}
             >
