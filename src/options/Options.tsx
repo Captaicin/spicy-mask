@@ -14,7 +14,7 @@ const Options: React.FC = () => {
 
       <section className="card">
         <h2>Available filters</h2>
-        <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <ul className="list">
           {filters.map((filter) => (
             <li key={filter.id}>
               <strong>{filter.label}</strong>
