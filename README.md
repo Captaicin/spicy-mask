@@ -69,7 +69,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
       - `ManagementPanel.tsx`: A UI for viewing and managing detected PII, ignored values, and adding/removing user-defined rules.
       - `filters/`
         - `index.ts`: Barrel exports for filter implementations.
-        - `AllFormFilter.ts`, `TextFormFilter.ts`, `MockFormFilter.ts`: Built-in filter strategies.
+        - `AllFormFilter.ts`, `LargeTextFormFilter.ts`, `TextFormFilter.ts`, `MockFormFilter.ts`: Built-in filter strategies.
     - `detection/`
       - `DetectionEngine.ts`: Runs all detectors, maintains a session-wide "PII Dictionary" of all unique values found (providing a robust cache), and manages ignored values.
       - `index.ts`: Detection engine entry/export.

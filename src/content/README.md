@@ -21,7 +21,7 @@
 | 경로              | 설명                                                                           |
 | ----------------- | ------------------------------------------------------------------------------ |
 | `index.ts`        | 콘텐츠 스크립트 엔트리. 오버레이 컨트롤러 초기화와 언로드 클린업을 담당합니다. |
-| `filterConfig.ts` | 현재 사용할 `FormFilter` 인스턴스와 기본 옵션을 정의합니다. 핫스왑 지점입니다. |
+| `filterConfig.ts` | 사용할 `FormFilter`를 선택하는 설정 파일입니다. 기본값으로 `LargeTextFormFilter`가 설정되어 있으며, 이 파일을 수정하여 `AllFormFilter`나 `TextFormFilter` 등으로 쉽게 교체할 수 있습니다. |
 
 ## `forms/` 서브시스템
 
@@ -37,12 +37,13 @@
 | `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다. |
 | `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션, 스캔 도구, PII 관리 패널을 제공하는 React UI 레이어입니다. 팝업 위치 계산은 `@floating-ui/react`를 사용하고, `React.createPortal`을 통해 다른 UI에 가려지지 않도록 처리합니다. |
 | `ManagementPanel.tsx`      | 현재 탐지된 PII, 무시된 값, 사용자 정의 규칙을 보고 관리(무시, 복원, 추가, 제거)하는 UI 컴포넌트입니다.                                                                     |
-| `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
+| `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `LargeTextFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
 
 ### 필터 구현
 
 - `AllFormFilter`: 모든 입력/텍스트 영역을 허용하는 가장 포괄적인 필터.
-- `TextFormFilter`: 텍스트 입력 위주로 필터링하며 숨김/비활성 컨트롤을 제외합니다.
+- `LargeTextFormFilter`: 댓글, 게시글 본문 등 여러 줄을 입력하는 큰 텍스트 영역에 집중하는 필터입니다. 모든 `<input>` 요소는 제외하고, `<textarea>` 및 `<form>` 내부에 있는 `contenteditable` 요소만 타겟으로 삼아 노션(Notion)과 같은 문서 편집 페이지에서의 성능 저하를 방지합니다.
+- `TextFormFilter`: 일반적인 텍스트 입력(`input`, `textarea` 등) 위주로 필터링하며 숨김/비활성 컨트롤을 제외합니다.
 - `MockFormFilter`: mock/test 속성이나 텍스트를 기준으로 테스트용 필드를 선택합니다.
 
 ## 감지(`detection/`) 서브시스템
