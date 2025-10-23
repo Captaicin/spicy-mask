@@ -549,8 +549,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
               border: `1px solid ${tokens.colors.border}`,
               background: 'transparent',
               color: tokens.colors.textPrimary,
-              fontWeight: tokens.typography.fontWeightMedium,
+              fontWeight: tokens.typography.fontWeightBold,
               cursor: 'pointer',
+              fontSize: tokens.typography.fontSizeXs,
             }}
           >
             Mask all
