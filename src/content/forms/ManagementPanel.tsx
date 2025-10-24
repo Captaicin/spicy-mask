@@ -11,6 +11,7 @@ interface ManagementPanelProps {
   onAddRule: (rule: string) => void
   onRemoveRule: (rule: string) => void
   onClose: () => void
+  onMaskAll: () => void
 }
 
 const MIN_WIDTH = 300
@@ -41,7 +42,7 @@ const panelStyles: React.CSSProperties = {
 }
 
 const headerStyles: React.CSSProperties = {
-  padding: tokens.spacing.s2,
+  padding: `0 ${tokens.spacing.s2} ${tokens.spacing.s2} ${tokens.spacing.s2}`,
   fontSize: tokens.typography.fontSizeSm,
   fontWeight: tokens.typography.fontWeightBold,
   borderBottom: `1px solid ${tokens.colors.border}`,
@@ -167,6 +168,7 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   onAddRule,
   onRemoveRule,
   onClose,
+  onMaskAll,
 }) => {
   const detectedPiiValues = React.useMemo(() => {
     const uniqueValues = new Set(visibleMatches.map((m) => m.match))
@@ -222,9 +224,28 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
     <div style={panelStyles}>
       <div style={headerStyles}>
         <span>Management Panel</span>
-        <button style={closeButtonStyles} onClick={onClose}>
-          ×
-        </button>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: tokens.spacing.s2,
+          }}
+        >
+          <button
+            style={{
+              ...buttonStyles,
+              background: tokens.colors.accentOrange,
+              color: tokens.colors.backgroundPrimary,
+              fontWeight: tokens.typography.fontWeightBold,
+            }}
+            onClick={onMaskAll}
+          >
+            Mask all
+          </button>
+          <button style={closeButtonStyles} onClick={onClose}>
+            ×
+          </button>
+        </div>
       </div>
 
       <div ref={contentRef} style={contentContainerStyles}>
