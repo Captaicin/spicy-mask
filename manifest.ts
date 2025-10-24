@@ -24,9 +24,9 @@ export default defineManifest({
   permissions: ['storage', 'tabs', 'scripting', 'contextMenus'],
   host_permissions: ['https://*/*', 'http://*/*'], // Trim scopes for production deployments.
   icons: {
-    16: 'icons/icon-16.png',
-    48: 'icons/icon-48.png',
-    128: 'icons/icon-128.png',
+    16: 'icons/red-icons/icon16.png',
+    48: 'icons/red-icons/icon48.png',
+    128: 'icons/red-icons/icon128.png',
   },
   web_accessible_resources: [
     {
