@@ -42,7 +42,7 @@
 ### 필터 구현
 
 - `AllFormFilter`: 모든 입력/텍스트 영역을 허용하는 가장 포괄적인 필터.
-- `LargeTextFormFilter`: 댓글, 게시글 본문 등 여러 줄을 입력하는 큰 텍스트 영역에 집중하는 필터입니다. 모든 `<input>` 요소는 제외하고, `<textarea>` 및 `<form>` 내부에 있는 `contenteditable` 요소만 타겟으로 삼아 노션(Notion)과 같은 문서 편집 페이지에서의 성능 저하를 방지합니다.
+- `LargeTextFormFilter`: 댓글, 게시글 본문 등 여러 줄을 입력하는 큰 텍스트 영역에 집중하는 필터입니다. 모든 `<input>` 요소는 제외하고, `<textarea>` 및 특정 조건을 만족하는 `contenteditable` 요소를 타겟으로 합니다. `contenteditable` 요소의 경우, `<form>` 내부에 있거나, `role="textbox"` 속성을 가지거나, 연결된 `<label>`이 있는 경우에만 타겟으로 삼아 노션(Notion)과 같은 문서 편집 페이지에서의 성능 저하를 방지합니다.
 - `TextFormFilter`: 일반적인 텍스트 입력(`input`, `textarea` 등) 위주로 필터링하며 숨김/비활성 컨트롤을 제외합니다.
 - `MockFormFilter`: mock/test 속성이나 텍스트를 기준으로 테스트용 필드를 선택합니다.
 
