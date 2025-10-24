@@ -76,7 +76,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
       - `detectors/`
         - `BaseDetector.ts`: Shared detector contracts.
         - `GeminiDetector.ts`: Receives raw PII suggestions from the background service and finds all match indices in the text.
-        - `RegexDetector.ts`: High-precision PII engine using multiple prioritized patterns.
+        - `RegexDetector.ts`: A PII engine using prioritized regular expressions. It validates credit card numbers with the Luhn algorithm and phone numbers with `libphonenumber-js` for high accuracy.
         - `UserRuleDetector.ts`: Detects all occurrences of user-defined PII patterns.
         - `geminiClient.ts`: Thin messaging client for `RUN_GEMINI_PII_ANALYSIS`.
         - `index.ts`: Registers default detectors.

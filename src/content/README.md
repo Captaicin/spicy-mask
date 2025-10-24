@@ -54,9 +54,9 @@
 | --- | --- |
 | `DetectionEngine.ts` | 모든 탐지기를 실행하고, 세션 동안 발견된 모든 고유 PII를 '사전' 형태로 기억하여 캐시로 활용합니다. 또한, 사용자가 무시한 값의 목록을 관리합니다. |
 | `detectors/BaseDetector.ts` | 모든 감지기의 기본 클래스. `detect` 메서드와 공통 입력 타입(`DetectionInput`)을 정의합니다. |
-| `detectors/RegexDetector.ts` | 다중 정규식 패턴을 사용해 PII(개인 식별 정보)를 탐지하는 엔진입니다. 자체적으로 패턴 우선순위에 따라 결과를 처리하고, 신용카드 번호의 경우 Luhn 알고리즘으로 유효성을 검증하여 정확도를 높입니다. |
+| `detectors/RegexDetector.ts` | 다중 정규식 패턴으로 PII 후보를 찾고, 추가 검증을 통해 정확도를 높이는 엔진입니다. 신용카드는 Luhn 알고리즘으로, **전화번호는 `libphonenumber-js` 라이브러리를 통해 검증**하여 오탐을 줄이고 글로벌 지원을 강화합니다. 내부에 캐시와 다양한 휴리스틱을 포함하여 성능과 정확성을 최적화합니다. |
 | `detectors/UserRuleDetector.ts` | 사용자가 직접 추가한 텍스트 패턴(규칙)과 일치하는 모든 문자열을 탐지합니다. |
-| `detectors/pii/piiPatterns.ts` | `RegexDetector`가 사용하는 PII 정규식 패턴, 우선순위, 유효성 검증 로직(Luhn 알고리즘)을 정의합니다. |
+| `detectors/pii/piiPatterns.ts` | `RegexDetector`가 사용하는 PII 정규식 패턴과 우선순위를 정의합니다. **전화번호의 경우, 광범위한 후보를 찾아내기 위한 '순진한(naive)' 패턴을 사용하며, 핵심 검증 로직은 `RegexDetector`에 있습니다.** |
 | `detectors/GeminiDetector.ts` | 백그라운드 Gemini 서비스를 호출하여 텍스트 내의 문맥적 PII(이름, 주소 등)를 탐지합니다. 서비스로부터 PII 후보값을 받은 후, "findall" 로직을 통해 텍스트 내 모든 일치 항목의 위치를 찾아 최종 `DetectionMatch` 객체를 생성합니다. |
 | `detectors/geminiClient.ts` | `GeminiDetector`와 `background` 서비스 간의 통신을 담당하는 얇은 클라이언트입니다. `sendMessage` API 호출을 추상화하고, `RUN_GEMINI_PII_ANALYSIS` 메시지를 전송합니다. |
 | `detectors/index.ts` | `DetectionEngine`에 사용될 기본 감지기(`RegexDetector`, `GeminiDetector`, `UserRuleDetector`)를 구성하고 내보냅니다. |
