@@ -124,7 +124,6 @@ export class TargetHighlighter {
 
       if (!hasMatches && !this.hasValue) {
         this.container.style.display = 'none'
-        return
       }
 
       this.container.style.display = 'block'
