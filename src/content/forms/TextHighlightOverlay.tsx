@@ -49,6 +49,8 @@ interface HighlightOverlayProps {
   closeSignal: number
   showScanButton: boolean
   latestTrigger: DetectionTrigger
+  isTargetFocused?: boolean
+  hasValue?: boolean
 }
 
 interface ActivePii {
@@ -104,6 +106,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   closeSignal,
   showScanButton,
   latestTrigger,
+  isTargetFocused,
+  hasValue,
 }) => {
   const popoverTimerRef = useRef<number | null>(null)
   const runCounterRef = useRef(0)
@@ -118,6 +122,12 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(
     null,
   )
+
+  useEffect(() => {
+    if (isTargetFocused === false || hasValue === false) {
+      setIsPanelOpen(false)
+    }
+  }, [isTargetFocused, hasValue])
 
   const activePii = pinned ?? hovered
 

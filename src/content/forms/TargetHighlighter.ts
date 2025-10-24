@@ -360,6 +360,8 @@ export class TargetHighlighter {
         closeSignal: this.closeSignal,
         showScanButton,
         latestTrigger: this.latestTrigger,
+        isTargetFocused: this.isTargetFocused(),
+        hasValue: this.hasValue,
       })
     )
   }
