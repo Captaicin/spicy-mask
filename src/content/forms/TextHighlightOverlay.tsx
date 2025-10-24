@@ -126,6 +126,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   useEffect(() => {
     if (isTargetFocused === false || hasValue === false) {
       setIsPanelOpen(false)
+      setIsScanOpen(false)
     }
   }, [isTargetFocused, hasValue])
 
