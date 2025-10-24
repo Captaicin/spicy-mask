@@ -46,27 +46,31 @@ export class LargeTextFormFilter extends FormFilter {
       return false
     }
 
-    if (element.isContentEditable) {
-      if (this.isDisabledByAria(element)) {
-        return false
-      }
-      // Only consider a target if it's inside a form, to avoid matching whole page editors.
-      if (!element.closest('form')) {
-        return false
-      }
-      return true
-    }
-
     const role = element.getAttribute('role')?.toLowerCase()
-    if (role === 'textbox') {
+    if (element.isContentEditable || role === 'textbox') {
       if (this.isDisabledByAria(element)) {
         return false
       }
-      // Only consider a target if it's inside a form.
-      if (!element.closest('form')) {
-        return false
+
+      // For contenteditable elements, we need to be careful not to match
+      // rich text editors (like Notion, Google Docs).
+      // We use a few heuristics to decide if it's a form-like input.
+
+      // 1. It's inside a <form> element.
+      if (element.closest('form')) {
+        return true
       }
-      return true
+
+      // 2. It has a "textbox" role. This is a strong signal.
+      if (role === 'textbox') {
+        return true
+      }
+
+      // 3. It has an associated <label> element.
+      const labels = (element as HTMLInputElement).labels;
+      if (labels && labels.length > 0) {
+        return true
+      }
     }
 
     return false
