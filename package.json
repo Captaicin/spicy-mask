@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
+    "libphonenumber-js": "^1.12.24",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

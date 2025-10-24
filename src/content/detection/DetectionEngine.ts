@@ -3,11 +3,19 @@ import { BaseDetector, type DetectionInput } from './detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
 import { UserRuleDetector } from './detectors/UserRuleDetector'
 
+interface PiiMetadata {
+  detectorId: string
+  type: string
+  source: string
+  priority: number
+  reason?: string
+}
+
 export class DetectionEngine {
   private detectors: BaseDetector[]
   private isRunning = false
 
-  private geminiCache = new Map<string, { type: string, source: string, priority: number }>()
+  private geminiCache = new Map<string, PiiMetadata>()
   private ignoredValues = new Set<string>()
 
   constructor(detectors: BaseDetector[] = []) {
@@ -80,7 +88,13 @@ export class DetectionEngine {
           for (const match of matches) {
             // Add or overwrite with higher priority results from live detectors
             if (!currentPiiDictionary.has(match.match) || match.priority > (currentPiiDictionary.get(match.match)?.priority ?? -1)) {
-                currentPiiDictionary.set(match.match, { type: match.entityType, source: match.source, priority: match.priority })
+                currentPiiDictionary.set(match.match, {
+                    type: match.entityType,
+                    source: match.source,
+                    priority: match.priority,
+                    reason: match.reason,
+                    detectorId: match.detectorId,
+                })
             }
           }
         } catch (err) {
@@ -95,11 +109,15 @@ export class DetectionEngine {
           try {
             const matches = await geminiDetector.detect(enrichedInput);
             for (const match of matches) {
-              // Add to both the current dictionary and the long-term cache
-              const newMeta = { type: match.entityType, source: match.source, priority: match.priority }
-              currentPiiDictionary.set(match.match, newMeta)
-              this.geminiCache.set(match.match, newMeta)
+            const newMeta: PiiMetadata = {
+              detectorId: match.detectorId,
+              type: match.entityType,
+              source: match.source,
+              priority: match.priority,
+              reason: match.reason,  
             }
+            currentPiiDictionary.set(match.match, newMeta)
+            this.geminiCache.set(match.match, newMeta)            }
           } catch (err) {
             error('Detector execution failed', { detectorId: geminiDetector.id, message: String(err) })
           }
@@ -116,13 +134,14 @@ export class DetectionEngine {
         let currentIndex = -1;
         while ((currentIndex = enrichedInput.value.indexOf(value, currentIndex + 1)) !== -1) {
           const match: DetectionMatch = {
-            detectorId: meta.source,
+            detectorId: meta.detectorId,
             source: meta.source as any,
             entityType: meta.type as any,
             priority: meta.priority,
             match: value,
             startIndex: currentIndex,
             endIndex: currentIndex + value.length,
+            reason: meta.reason,
           }
           allFoundMatches.push(match)
         }

@@ -9,7 +9,7 @@ export interface PiiPattern {
 
 export const PII_PATTERNS: Record<string, PiiPattern> = {
   CREDIT_CARD: {
-    regex: /\b(?:\d[ -]*?){13,19}\b/g,
+    regex: /\b(?:3[47]\d{2}[\s-]?\d{6}[\s-]?\d{5}|(?:4\d{3}|5[1-5]\d{2}|6011)[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})\b/g,
     label: 'Credit Card',
     entityType: 'credit_card_number',
     priority: 120,
@@ -26,20 +26,13 @@ export const PII_PATTERNS: Record<string, PiiPattern> = {
     entityType: 'email',
     priority: 100,
   },
-  PHONE_NUMBER: {
-    regex: /\b(?:(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?)?\d{3,4}[-.\s]?\d{4}\b/g,
+  PHONE_NUMBER_NAIVE: {
+    regex: /(?<=(?:^|\s|:))[+(]?(?:\d[ \-().~;:–]*){7,15}\d\b/g,
     label: 'Phone Number',
     entityType: 'phone_number',
     priority: 90,
   },
 };
-
-// export const PII_PATTERN_ORDER: (keyof typeof PII_PATTERNS)[] = [
-//   'CREDIT_CARD', 
-//   'SSN', 
-//   'EMAIL', 
-//   'PHONE_NUMBER'
-// ];
 
 export const PII_PATTERN_ORDER = Object.keys(PII_PATTERNS).sort(
   (a, b) => PII_PATTERNS[b].priority - PII_PATTERNS[a].priority
