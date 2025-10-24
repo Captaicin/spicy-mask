@@ -595,64 +595,72 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         )}
       </div>
 
-      {showScanButton ? (
-        <div
-          style={{
-            position: 'absolute',
-            right: tokens.spacing.s2,
-            bottom: tokens.spacing.s1,
-            display: 'flex',
-            gap: tokens.spacing.s1,
-            pointerEvents: 'auto',
-          }}
-        >
-          <button
-            ref={panelRefs.setReference}
-            type="button"
-            onClick={() => setIsPanelOpen((open) => !open)}
+      {showScanButton ? (() => {
+        const rawButtonSize = (containerRect?.height || 32) - 8
+        const buttonSize = Math.max(16, Math.min(24, rawButtonSize))
+        const gearFontSize = Math.max(12, buttonSize - 10)
+        const gemFontSize = Math.max(12, buttonSize - 12)
+
+        return (
+          <div
             style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: tokens.radii.full,
-              border: `1px solid ${tokens.colors.border}`,
-              background: tokens.colors.backgroundSecondary,
-              color: tokens.colors.textPrimary,
-              fontSize: tokens.typography.fontSizeSm,
+              position: 'absolute',
+              right: tokens.spacing.s2,
+              bottom: tokens.spacing.s1,
               display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              fontWeight: tokens.typography.fontWeightBold,
-              cursor: 'pointer',
-              boxShadow: tokens.shadows.md,
+              gap: tokens.spacing.s1,
+              pointerEvents: 'auto',
             }}
-            title="Manage ignored values and rules"
           >
-            ⚙️
-          </button>
-          <button
-            ref={scanRefs.setReference}
-            type="button"
-            onClick={() => setIsScanOpen((open) => !open)}
-            style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: tokens.radii.full,
-              border: 'none',
-              background: tokens.colors.textLink,
-              color: tokens.colors.textPrimary,
-              fontSize: tokens.typography.fontSizeXs,
-              lineHeight: '24px',
-              textAlign: 'center',
-              fontWeight: tokens.typography.fontWeightBold,
-              cursor: 'pointer',
-              boxShadow: tokens.shadows.md,
-            }}
-            title="Scan for sensitive text"
-          >
-            ✦
-          </button>
-        </div>
-      ) : null}
+            <button
+              ref={panelRefs.setReference}
+              type="button"
+              onClick={() => setIsPanelOpen((open) => !open)}
+              style={{
+                width: `${buttonSize}px`,
+                height: `${buttonSize}px`,
+                borderRadius: tokens.radii.full,
+                border: `1px solid ${tokens.colors.border}`,
+                background: tokens.colors.backgroundSecondary,
+                color: tokens.colors.textPrimary,
+                fontSize: `${gearFontSize}px`,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                fontWeight: tokens.typography.fontWeightBold,
+                cursor: 'pointer',
+                boxShadow: tokens.shadows.md,
+              }}
+              title="Manage ignored values and rules"
+            >
+              ⚙️
+            </button>
+            <button
+              ref={scanRefs.setReference}
+              type="button"
+              onClick={() => setIsScanOpen((open) => !open)}
+              style={{
+                width: `${buttonSize}px`,
+                height: `${buttonSize}px`,
+                borderRadius: tokens.radii.full,
+                border: 'none',
+                background: tokens.colors.textLink,
+                color: tokens.colors.textPrimary,
+                fontSize: `${gemFontSize}px`,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                fontWeight: tokens.typography.fontWeightBold,
+                cursor: 'pointer',
+                boxShadow: tokens.shadows.md,
+              }}
+              title="Scan for sensitive text"
+            >
+              ✦
+            </button>
+          </div>
+        )
+      })() : null}
       {managementPanel}
       {piiPopover}
       {scanPopover}
