@@ -109,15 +109,21 @@ export class DetectionEngine {
           try {
             const matches = await geminiDetector.detect(enrichedInput);
             for (const match of matches) {
-            const newMeta: PiiMetadata = {
-              detectorId: match.detectorId,
-              type: match.entityType,
-              source: match.source,
-              priority: match.priority,
-              reason: match.reason,  
+              const existing = currentPiiDictionary.get(match.match)
+              // Add or overwrite if new match has higher priority
+              if (!existing || match.priority > existing.priority) {
+                const newMeta: PiiMetadata = {
+                  detectorId: match.detectorId,
+                  type: match.entityType,
+                  source: match.source,
+                  priority: match.priority,
+                  reason: match.reason,
+                }
+                currentPiiDictionary.set(match.match, newMeta)
+                // Also update the persistent Gemini cache
+                this.geminiCache.set(match.match, newMeta)
+              }
             }
-            currentPiiDictionary.set(match.match, newMeta)
-            this.geminiCache.set(match.match, newMeta)            }
           } catch (err) {
             error('Detector execution failed', { detectorId: geminiDetector.id, message: String(err) })
           }
@@ -152,7 +158,15 @@ export class DetectionEngine {
       }
 
       // 5. Resolve overlaps
-      allFoundMatches.sort((a, b) => b.priority - a.priority)
+      allFoundMatches.sort((a, b) => {
+        // 1. Longer match wins
+        const lengthDifference = b.match.length - a.match.length;
+        if (lengthDifference !== 0) {
+          return lengthDifference;
+        }
+        // 2. Fallback to priority
+        return b.priority - a.priority;
+      });
       const finalMatches: DetectionMatch[] = []
       const isOverlapping = (matchA: DetectionMatch, matchB: DetectionMatch): boolean => {
         return Math.max(matchA.startIndex, matchB.startIndex) < Math.min(matchA.endIndex, matchB.endIndex)
