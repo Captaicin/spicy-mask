@@ -115,9 +115,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
   const [hovered, setHovered] = useState<ActivePii | null>(null)
   const [pinned, setPinned] = useState<ActivePii | null>(null)
-
-  const [isScanOpen, setIsScanOpen] = useState(false)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
+
   const [scanPending, setScanPending] = useState(false)
   const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(
     null,
@@ -126,7 +125,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   useEffect(() => {
     if (isTargetFocused === false || hasValue === false) {
       setIsPanelOpen(false)
-      setIsScanOpen(false)
     }
   }, [isTargetFocused, hasValue])
 
@@ -142,14 +140,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         ? { getBoundingClientRect: () => activePii.anchorRect }
         : null) as any,
     },
-  })
-
-  const { refs: scanRefs, floatingStyles: scanFloatingStyles } = useFloating({
-    open: isScanOpen,
-    onOpenChange: setIsScanOpen,
-    placement: 'top-start',
-    whileElementsMounted: autoUpdate,
-    middleware: [offset(8), flip(), shift({ padding: 8 })],
   })
 
   const { refs: panelRefs, floatingStyles: panelFloatingStyles } = useFloating({
@@ -187,7 +177,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     clearPopoverTimer()
     setPinned(null)
     setHovered(null)
-    setIsScanOpen(false)
   }, [target, clearPopoverTimer])
 
   const handleHighlightEnter = useCallback(
@@ -221,7 +210,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       clearPopoverTimer()
       setPinned({ pii, anchorRect: rect })
       setHovered(null)
-      setIsScanOpen(false)
     },
     [context, onFocusMatch, target, clearPopoverTimer],
   )
@@ -297,13 +285,17 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   }, [latestTrigger, allMatches])
 
   useEffect(() => {
-    if (!isScanOpen) {
+    if (!isPanelOpen) {
       resetScanState()
     }
-  }, [isScanOpen, resetScanState])
+  }, [isPanelOpen, resetScanState])
 
   const showMaskAllButton =
     Boolean(scanSummary) && !scanPending && allMatches.length > 0
+
+
+
+
 
   const piiPopover = createPortal(
     activePii ? (
@@ -428,113 +420,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     document.body,
   )
 
-  const scanPopover = createPortal(
-    isScanOpen ? (
-      <div
-        ref={scanRefs.setFloating}
-        style={{
-          ...scanFloatingStyles,
-          width: '180px',
-          padding: tokens.spacing.s3,
-          borderRadius: tokens.radii.md,
-          background: tokens.colors.backgroundSecondary,
-          color: tokens.colors.textPrimary,
-          boxShadow: tokens.shadows.xl,
-          border: `1px solid ${tokens.colors.border}`,
-          pointerEvents: 'auto',
-          fontFamily: tokens.typography.fontFamilyBase,
-          zIndex: 2147483647,
-          maxHeight: '400px',
-          overflowY: 'auto',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setIsScanOpen(false)}
-          style={{
-            position: 'absolute',
-            top: tokens.spacing.s2,
-            right: tokens.spacing.s2,
-            width: '20px',
-            height: '20px',
-            border: 'none',
-            background: 'transparent',
-            fontSize: tokens.typography.fontSizeMd,
-            lineHeight: '20px',
-            textAlign: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          ×
-        </button>
-        <div
-          style={{
-            paddingBottom: tokens.spacing.s2,
-            marginBottom: tokens.spacing.s2,
-            borderBottom: `1px solid ${tokens.colors.border}`,
-            fontSize: tokens.typography.fontSizeSm,
-            fontWeight: tokens.typography.fontWeightBold,
-          }}
-        >
-          Scan Tools
-        </div>
-        <button
-          type="button"
-          onClick={handleStartScan}
-          style={{
-            width: '100%',
-            padding: '6px 10px',
-            borderRadius: tokens.radii.sm,
-            border: 'none',
-            background: tokens.colors.accentGreen,
-            color: tokens.colors.backgroundPrimary,
-            fontWeight: tokens.typography.fontWeightBold,
-            cursor: 'pointer',
-            fontSize: tokens.typography.fontSizeXs,
-          }}
-        >
-          Start Scan
-        </button>
-        <div
-          style={{
-            marginTop: tokens.spacing.s3,
-            fontSize: tokens.typography.fontSizeXs,
-            color: tokens.colors.textSecondary,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {scanPending && !scanSummary ? (
-            <span>Scanning…</span>
-          ) : scanSummary ? (
-            <>
-              <span
-                style={{
-                  fontWeight: tokens.typography.fontWeightBold,
-                  color: tokens.colors.textPrimary,
-                }}
-              >
-                Results
-              </span>
-              {Object.entries(scanSummary).length > 0 ? (
-                Object.entries(scanSummary).map(([type, count]) => (
-                  <span key={type} style={{ marginLeft: tokens.spacing.s2 }}>
-                    • {type}: {count}
-                  </span>
-                ))
-              ) : (
-                <span>No PII found.</span>
-              )}
-            </>
-          ) : (
-            <span>Run Start Scan to scan PII with Gemini Nano</span>
-          )}
-        </div>
-      </div>
-    ) : null,
-    document.body,
-  )
-
   const managementPanel = createPortal(
     isPanelOpen && onUnignore && onAddRule && onRemoveRule && onIgnoreValue ? (
       <div ref={panelWrapperRef}>
@@ -555,6 +440,10 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             onRemoveRule={onRemoveRule}
             onClose={() => setIsPanelOpen(false)}
             onMaskAll={handleMaskAll}
+            onStartScan={handleStartScan}
+            scanPending={scanPending}
+            scanSummary={scanSummary}
+            showMaskAllButton={showMaskAllButton}
           />
         </div>
       </div>
@@ -636,35 +525,13 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             >
               ⚙️
             </button>
-            <button
-              ref={scanRefs.setReference}
-              type="button"
-              onClick={() => setIsScanOpen((open) => !open)}
-              style={{
-                width: `${buttonSize}px`,
-                height: `${buttonSize}px`,
-                borderRadius: tokens.radii.full,
-                border: 'none',
-                background: tokens.colors.textLink,
-                color: tokens.colors.textPrimary,
-                fontSize: `${gemFontSize}px`,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                fontWeight: tokens.typography.fontWeightBold,
-                cursor: 'pointer',
-                boxShadow: tokens.shadows.md,
-              }}
-              title="Scan for sensitive text"
-            >
-              ✦
-            </button>
+            {/* Scan button removed, functionality moved to ManagementPanel */}
           </div>
         )
       })() : null}
       {managementPanel}
       {piiPopover}
-      {scanPopover}
+      {/* scanPopover removed */}
     </>
   )
 }

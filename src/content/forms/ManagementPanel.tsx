@@ -12,6 +12,10 @@ interface ManagementPanelProps {
   onRemoveRule: (rule: string) => void
   onClose: () => void
   onMaskAll: () => void
+  onStartScan: () => void
+  scanPending: boolean
+  scanSummary: Record<string, number> | null
+  showMaskAllButton: boolean
 }
 
 const MIN_WIDTH = 300
@@ -169,6 +173,10 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   onRemoveRule,
   onClose,
   onMaskAll,
+  onStartScan,
+  scanPending,
+  scanSummary,
+  showMaskAllButton,
 }) => {
   const detectedPiiValues = React.useMemo(() => {
     const uniqueValues = new Set(visibleMatches.map((m) => m.match))
@@ -220,10 +228,46 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
     scrollbarGutter: `${needsScroll ? 'stable' : 'auto'}`,
   }
 
+  const animatedGradientButtonStyle: React.CSSProperties = {
+    ...buttonStyles,
+    padding: '6px 10px',
+    border: 'none',
+    borderRadius: tokens.radii.md,
+    cursor: 'pointer',
+    color: 'white',
+    fontSize: tokens.typography.fontSizeXs,
+    fontWeight: tokens.typography.fontWeightBold,
+    background: `linear-gradient(
+      135deg,
+      #2196F3,
+      #FF1744,
+      #FFC107,
+      #2196F3
+    )`,
+    backgroundSize: '400% 400%',
+    animation: 'gradient-move 10s ease infinite',
+  }
+
   return (
-    <div style={panelStyles}>
-      <div style={headerStyles}>
-        <span>Management Panel</span>
+    <>
+      <style>
+        {`
+          @keyframes gradient-move {
+            0% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
+          }
+        `}
+      </style>
+      <div style={panelStyles}>
+        <div style={headerStyles}>
+          <span>Management Panel</span>
         <div
           style={{
             display: 'flex',
@@ -231,6 +275,12 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
             gap: tokens.spacing.s2,
           }}
         >
+          <button
+            style={animatedGradientButtonStyle}
+            onClick={onStartScan}
+          >
+            Scan with Gemini
+          </button>
           <button
             style={{
               ...buttonStyles,
@@ -246,6 +296,32 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
             ×
           </button>
         </div>
+      </div>
+
+      <div style={{ padding: `0 ${tokens.spacing.s2}` }}>
+        {scanPending && !scanSummary ? (
+          <span>Scanning…</span>
+        ) : scanSummary ? (
+          <>
+            <span
+              style={{
+                fontWeight: tokens.typography.fontWeightBold,
+                color: tokens.colors.textPrimary,
+              }}
+            >
+              Results
+            </span>
+            {Object.entries(scanSummary).length > 0 ? (
+              Object.entries(scanSummary).map(([type, count]) => (
+                <span key={type} style={{ marginLeft: tokens.spacing.s2 }}>
+                  • {type}: {count}
+                </span>
+              ))
+            ) : (
+              <span>No PII found.</span>
+            )}
+          </>
+        ) : null}
       </div>
 
       <div ref={contentRef} style={contentContainerStyles}>
@@ -305,5 +381,6 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
         </ListSection>
       </div>
     </div>
+    </>
   )
 }
