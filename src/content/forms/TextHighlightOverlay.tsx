@@ -412,24 +412,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             Ignore
           </button>
         </div>
-        <button
-          type="button"
-          onClick={handleMaskAll}
-          style={{
-            width: '100%',
-            marginTop: tokens.spacing.s2,
-            padding: '6px 10px',
-            borderRadius: tokens.radii.sm,
-            border: 'none',
-            background: tokens.colors.border,
-            color: tokens.colors.textPrimary,
-            fontWeight: tokens.typography.fontWeightMedium,
-            cursor: 'pointer',
-            fontSize: tokens.typography.fontSizeXs,
-          }}
-        >
-          Mask all
-        </button>
       </div>
     ) : null,
     document.body,
@@ -537,26 +519,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             <span>Run Start Scan to scan PII with Gemini Nano</span>
           )}
         </div>
-        {showMaskAllButton ? (
-          <button
-            type="button"
-            onClick={handleMaskAll}
-            style={{
-              width: '100%',
-              marginTop: tokens.spacing.s3,
-              padding: tokens.spacing.s2,
-              borderRadius: tokens.radii.sm,
-              border: `1px solid ${tokens.colors.border}`,
-              background: 'transparent',
-              color: tokens.colors.textPrimary,
-              fontWeight: tokens.typography.fontWeightBold,
-              cursor: 'pointer',
-              fontSize: tokens.typography.fontSizeXs,
-            }}
-          >
-            Mask all
-          </button>
-        ) : null}
       </div>
     ) : null,
     document.body,
@@ -581,6 +543,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             onAddRule={onAddRule}
             onRemoveRule={onRemoveRule}
             onClose={() => setIsPanelOpen(false)}
+            onMaskAll={handleMaskAll}
           />
         </div>
       </div>
