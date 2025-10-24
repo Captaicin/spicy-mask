@@ -124,7 +124,6 @@ export class TargetHighlighter {
 
       if (!hasMatches && !this.hasValue) {
         this.container.style.display = 'none'
-        return
       }
 
       this.container.style.display = 'block'
@@ -361,6 +360,8 @@ export class TargetHighlighter {
         closeSignal: this.closeSignal,
         showScanButton,
         latestTrigger: this.latestTrigger,
+        isTargetFocused: this.isTargetFocused(),
+        hasValue: this.hasValue,
       })
     )
   }
