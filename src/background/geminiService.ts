@@ -16,8 +16,9 @@ const PII_ANALYSIS_SCHEMA = {
           pii_type: { type: 'string' },
           pii_value: { type: 'string' },
           reason: { type: 'string' },
+          is_masked: { type: 'boolean' },
         },
-        required: ['pii_type', 'pii_value', 'reason'],
+        required: ['pii_type', 'pii_value', 'reason', 'is_masked'],
       },
     },
   },
@@ -62,8 +63,14 @@ export async function runPiiAnalysis(
 
   const prompt = `Role: You are a privacy expert. Your task is to identify PII that is **difficult to detect with simple patterns such as regex**.
 
-Analyze the user's input for PII. For each piece of PII found, provide its type (e.g., "Full Name"), the exact value, and a brief reason for your decision.
-If you find multiple instances of a valid PII type (e.g., two different passwords), return an object for each. Do not summarize.
+Analyze the user's input for PII. For each piece of PII found, provide its type (e.g., "Full Name", "Password"), the exact value, and a brief reason for your decision.
+
+For each item, you must also set a boolean 'is_masked' field. Follow these rules in order:
+1. If the 'pii_type' is 'Password', you **must** set 'is_masked' to false.
+2. For all other types, set 'is_masked' to true **only if** a significant portion of the value is replaced by masking characters (like '*', 'X', '#'), making it unreadable. (e.g., 'john.doe@*****.com' is masked, but 'User*s' is not).
+3. If the above conditions are not met, set 'is_masked' to false.
+
+If you find multiple instances of a valid PII type, return an object for each. Do not summarize.
 Respond with a JSON object conforming to the schema.
 ---
 SELECTED TEXT:
@@ -80,5 +87,6 @@ SELECTED TEXT:
     value: item.pii_value,
     type: item.pii_type,
     reason: item.reason,
+    is_masked: item.is_masked,
   }))
 }

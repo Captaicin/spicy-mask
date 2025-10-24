@@ -56,6 +56,7 @@ export interface GeminiApiResult {
   value: string
   type: string
   reason: string
+  is_masked: boolean
 }
 
 export type Msg = 

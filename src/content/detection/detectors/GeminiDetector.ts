@@ -36,10 +36,15 @@ export class GeminiDetector extends BaseDetector {
       count: rawMatches.length,
     })
 
-    // 2. "Findall" logic: Find all occurrences and create DetectionMatch objects
+    // 2. Filter out masked PII and "Findall" logic
     const allMatches: DetectionMatch[] = []
 
     for (const item of rawMatches) {
+      // Always process passwords. For other types, skip if they are already masked.
+      if (item.is_masked && item.type.toLowerCase() !== 'password') {
+        continue
+      }
+
       const searchTerm = item.value
       if (!searchTerm) continue
 
@@ -48,7 +53,7 @@ export class GeminiDetector extends BaseDetector {
         allMatches.push({
           detectorId: this.id,
           source: 'gemini',
-          priority: 10, // Default priority for Gemini matches
+          priority: 130, // Default priority for Gemini matches
           match: searchTerm,
           startIndex: currentIndex,
           endIndex: currentIndex + searchTerm.length,
