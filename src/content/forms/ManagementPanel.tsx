@@ -38,7 +38,7 @@ const panelStyles: React.CSSProperties = {
   fontFamily: tokens.typography.fontFamilyBase,
   fontSize: tokens.typography.fontSizeXs,
   display: 'grid',
-  gridTemplateRows: 'auto 1fr',
+  gridTemplateRows: 'auto 1fr auto',
   padding: `${tokens.spacing.s2} 0`,
   boxSizing: 'border-box',
   overflow: 'hidden',
@@ -53,6 +53,22 @@ const headerStyles: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+}
+
+const footerStyles: React.CSSProperties = {
+  padding: `${tokens.spacing.s2} ${tokens.spacing.s2} ${tokens.spacing.s1}`,
+  borderTop: `1px solid ${tokens.colors.border}`,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+}
+
+const scanButtonContainerStyles: React.CSSProperties = {
+  position: 'sticky',
+  bottom: '0',
+  display: 'flex',
+  justifyContent: 'center',
+  width: '100%',
 }
 
 const contentContainerBaseStyles: React.CSSProperties = {
@@ -183,6 +199,14 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
     return Array.from(uniqueValues)
   }, [visibleMatches])
 
+  const shouldAnimate = React.useMemo(() => {
+    const hasRegexResults = visibleMatches.some(
+      (match) => match.detectorId !== 'gemini',
+    )
+    const hasGeminiResults = scanSummary && Object.keys(scanSummary).length > 0
+    return hasRegexResults && !hasGeminiResults
+  }, [visibleMatches, scanSummary])
+
   const [newRule, setNewRule] = React.useState('')
   const contentRef = React.useRef<HTMLDivElement>(null)
   const [needsScroll, setNeedsScroll] = React.useState(false)
@@ -248,6 +272,11 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
     animation: 'gradient-move 10s ease infinite',
   }
 
+  const scanButtonStyle =
+    shouldAnimate 
+      ? { ...animatedGradientButtonStyle, width: '80%' } 
+      : { ...buttonStyles, width: '80%' }
+
   return (
     <>
       <style>
@@ -275,12 +304,6 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
             gap: tokens.spacing.s2,
           }}
         >
-          <button
-            style={animatedGradientButtonStyle}
-            onClick={onStartScan}
-          >
-            Scan with Gemini
-          </button>
           <button
             style={{
               ...buttonStyles,
@@ -379,6 +402,16 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
             </button>
           </div>
         </ListSection>
+      </div>
+      <div style={footerStyles}>
+        <div style={scanButtonContainerStyles}>
+            <button
+              style={scanButtonStyle}
+              onClick={onStartScan}
+            >
+              Scan with Gemini
+            </button>
+        </div>
       </div>
     </div>
     </>
