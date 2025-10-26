@@ -2,7 +2,23 @@ import { onMessage } from '../shared/messaging'
 import type { Msg, MsgResponse } from '../shared/types'
 import { runPiiAnalysis } from './geminiService'
 
-chrome.runtime.onInstalled.addListener(() => {})
+const CONTEXT_MENU_ID = 'spicy-mask-selection'
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_ID,
+    title: 'Mask selected text',
+    contexts: ['selection'],
+  })
+})
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === CONTEXT_MENU_ID && tab?.id) {
+    chrome.tabs.sendMessage(tab.id, { type: 'MASK_SELECTION' }).catch(err =>
+      console.error('Failed to send MASK_SELECTION message:', err),
+    )
+  }
+})
 
 onMessage(async (message: Msg): Promise<MsgResponse> => {
   switch (message.type) {

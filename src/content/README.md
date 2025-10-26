@@ -20,8 +20,10 @@
 
 | 경로              | 설명                                                                           |
 | ----------------- | ------------------------------------------------------------------------------ |
-| `index.ts`        | 콘텐츠 스크립트 엔트리. 오버레이 컨트롤러 초기화와 언로드 클린업을 담당합니다. |
+| `index.ts`        | 콘텐츠 스크립트 엔트리. `FormOverlayController` 및 `contextMenuHandler`와 같은 핵심 모듈을 초기화하고 언로드 클린업을 담당합니다. |
 | `filterConfig.ts` | 사용할 `FormFilter`를 선택하는 설정 파일입니다. 기본값으로 `LargeTextFormFilter`가 설정되어 있으며, 이 파일을 수정하여 `AllFormFilter`나 `TextFormFilter` 등으로 쉽게 교체할 수 있습니다. |
+| `contextMenuHandler.ts` | 사용자가 선택한 텍스트를 마스킹하는 컨텍스트 메뉴 관련 로직을 처리합니다. 백그라운드 스크립트로부터 `MASK_SELECTION` 메시지를 수신하여 `handleMaskSelection` 함수를 실행합니다. |
+| `selection.ts` | 사용자의 선택(selection)을 처리하는 유틸리티 함수를 제공합니다. `contenteditable` 요소 내에서 선택된 텍스트의 상대적 위치(`offset`)를 계산하는 등의 역할을 합니다. |
 
 ## `forms/` 서브시스템
 

@@ -6,6 +6,7 @@ Spicy Mask is an on-device AI security extension that intelligently prevents per
 
 - **Phishing Page Detection:** Analyzes the full text content of the currently visited web page to determine its phishing risk level.
 - **Personally Identifiable Information (PII) Input Detection & Masking Suggestion:** Real-time detection of PII in text entered by the user into `<input>`, `<textarea>`, or `contenteditable` fields.
+- **Manual Text Masking:** Allows users to manually mask any selected text by right-clicking and choosing the "Mask selected text" option.
 - **Context-Aware Decision Engine:** Combines the phishing detection results and PII input detection results to determine the final user warning/suggestion action.
 - **PII Management Panel:** Provides an in-context UI to view all detected PII, manage session-level ignored values, and add or remove custom PII detection rules.
 
@@ -15,6 +16,7 @@ Once the extension is installed, it will automatically start working in the back
 
 - **Phishing Detection:** If you visit a suspicious or dangerous website, a warning banner will be displayed at the top of the page.
 - **PII Detection:** If you enter any personal information (e.g., credit card number, phone number) into an input field, a suggestion to mask the information will appear.
+- **Manual Masking:** You can also select any text in an input field, right-click, and choose "Mask selected text" to mask it manually.
 
 ## Configuration
 

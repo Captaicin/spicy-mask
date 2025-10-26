@@ -21,7 +21,7 @@ export default defineManifest({
       run_at: 'document_idle'
     }
   ],
-  permissions: ['storage', 'tabs', 'scripting'],
+  permissions: ['storage', 'tabs', 'scripting', 'contextMenus'],
   host_permissions: ['https://*/*', 'http://*/*'], // Trim scopes for production deployments.
   icons: {
     16: 'icons/icon-16.png',

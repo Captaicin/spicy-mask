@@ -59,9 +59,10 @@ export interface GeminiApiResult {
   is_masked: boolean
 }
 
-export type Msg = 
-  | { type: 'PING' } 
-  | { type: 'RUN_GEMINI_PII_ANALYSIS'; payload: { text: string } };
+export type Msg =
+  | { type: 'PING' }
+  | { type: 'RUN_GEMINI_PII_ANALYSIS'; payload: { text: string } }
+  | { type: 'MASK_SELECTION' }
 
 export type MsgResponse =
   | { ok: true; data?: unknown | GeminiApiResult[] }
