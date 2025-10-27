@@ -9,7 +9,7 @@
 | --- | --- |
 | `index.html` | 옵션 페이지 HTML 셸. `#root` 컨테이너와 `main.tsx` 번들 진입점을 정의합니다. |
 | `main.tsx` | React 18 `createRoot` 부트스트랩 코드. 전역 스타일(`../styles/globals.css`)을 import 합니다. |
-| `Options.tsx` | 실제 옵션 UI 컴포넌트. 필터 목록과 안내 섹션을 표출합니다. |
+| `Options.tsx` | 실제 옵션 UI 컴포넌트. 필터 목록, 안내 섹션 및 **하이라이트 기본 활성화 여부와 같은 사용자 설정을 제공합니다.** |
 
 ## 렌더 트리
 - `<main class="page">`: 기본 레이아웃 컨테이너.

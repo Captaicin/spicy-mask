@@ -37,8 +37,8 @@
 | `FormMirrorManager.ts`     | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다.                                                                                                      |
 | `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. `DetectionEngine`으로부터 최종 탐지 결과를 받아 하이라이트 및 마스킹 동작을 orchestration합니다.              |
 | `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다. |
-| `TextHighlightOverlay.tsx` | 감지된 텍스트를 시각화하고 마스킹 액션, 스캔 도구, PII 관리 패널을 제공하는 React UI 레이어입니다. 팝업 위치 계산은 `@floating-ui/react`를 사용하고, `React.createPortal`을 통해 다른 UI에 가려지지 않도록 처리합니다. |
-| `ManagementPanel.tsx`      | 현재 탐지된 PII, 무시된 값, 사용자 정의 규칙을 보고 관리(무시, 복원, 추가, 제거)하는 UI 컴포넌트입니다.                                                                     |
+| `TextHighlightOverlay.tsx` | PII가 탐지되었을 때 알림 뱃지를 제공하는 React UI 레이어입니다. 감지된 텍스트를 시각화하고 마스킹 액션, 스캔 도구, PII 관리 패널을 제공합니다. 페이지 우측 하단에 나타나는 🌶️ 아이콘 버튼을 통해 관리 패널을 열 수 있으며, 이 버튼의 테두리 색상은 PII 상태를 나타냅니다: **초록색** (처리할 PII 없음), **빨간색** (초기 탐지 결과만 존재), **주황색** (Gemini 스캔 실행 후). 팝업 위치 계산은 `@floating-ui/react`를 사용하고, `React.createPortal`을 통해 다른 UI에 가려지지 않도록 처리합니다. |
+| `ManagementPanel.tsx`      | 현재 탐지된 PII, 무시된 값, 사용자 정의 규칙을 보고 관리(무시, 복원, 추가, 제거)하는 UI 컴포넌트입니다. 텍스트 필드의 PII 하이라이트를 켜고 끌 수 있는 토글 스위치를 포함합니다. Gemini 스캔 실행 시, 패널 전체에 오버레이가 씌워지며 로딩 상태(`loading.gif`)를 표시합니다. 스캔이 완료되면, 오버레이 위에 탐지 결과 요약 카드가 나타나며, 사용자가 'Check Results' 버튼을 클릭해야 오버레이가 해제되고 상세 내용을 확인할 수 있습니다. |
 | `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `LargeTextFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
 
 ### 필터 구현
