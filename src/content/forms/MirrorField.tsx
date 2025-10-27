@@ -156,7 +156,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [])
 
   const runDetection = useCallback(
-    async (nextValue: string, options: { trigger?: DetectionTrigger } = {}) => {
+    async (nextValue: string, options: { trigger?: DetectionTrigger } = {}): Promise<DetectionMatch[] | undefined> => {
       const trigger = options.trigger ?? 'auto'
       const sequence = ++detectionSequenceRef.current
 
@@ -196,12 +196,14 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
             },
           )
         }, 200);
+        return results
       } catch (err) {
         warn('Detection run failed', {
           filterId,
           index,
           message: err instanceof Error ? err.message : String(err),
         })
+        return undefined
       }
     },
     [detectionContext, filterId, index, mappings, isHighlightingActive],
@@ -305,8 +307,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     }, [runDetection, plainText, value, target]),
     onRequestScan: useCallback(() => {
       const textToScan = isContentEditableElement(target) ? plainText : value;
-      if (textToScan === null) return;
-      void runDetection(textToScan, { trigger: 'manual' })
+      if (textToScan === null) return Promise.resolve(undefined);
+      return runDetection(textToScan, { trigger: 'manual' })
     }, [runDetection, plainText, value, target]),
     onContentScroll: useCallback(() => {
       highlighterRef.current?.update(valueRef.current, matchesRef.current, mappingsRef.current, ignoredValues, userRules)
@@ -325,7 +327,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       onUnignore: (...args) => callbacksRef.current.onUnignore?.(...args),
       onAddRule: (...args) => callbacksRef.current.onAddRule?.(...args),
       onRemoveRule: (...args) => callbacksRef.current.onRemoveRule?.(...args),
-      onRequestScan: (...args) => callbacksRef.current.onRequestScan?.(...args),
+      onRequestScan: (...args) => callbacksRef.current.onRequestScan?.(...args) ?? Promise.resolve(undefined),
       onContentScroll: (...args) => callbacksRef.current.onContentScroll?.(...args),
     })
     highlighterRef.current = highlighter

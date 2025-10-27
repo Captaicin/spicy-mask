@@ -33,7 +33,7 @@ export type TargetHighlighterCallbacks = {
   onUnignore?: (value: string) => void
   onAddRule?: (rule: string) => void
   onRemoveRule?: (rule: string) => void
-  onRequestScan?: () => void
+  onRequestScan?: () => Promise<DetectionMatch[] | undefined>
   onContentScroll?: () => void
 }
 

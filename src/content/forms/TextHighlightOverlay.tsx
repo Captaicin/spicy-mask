@@ -45,7 +45,7 @@ interface HighlightOverlayProps {
   onUnignore?: (value: string) => void
   onAddRule?: (rule: string) => void
   onRemoveRule?: (rule: string) => void
-  onRequestScan?: () => void
+  onRequestScan?: () => Promise<DetectionMatch[] | undefined>
   closeSignal: number
   showScanButton: boolean
   latestTrigger: DetectionTrigger
@@ -114,8 +114,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   setIsHighlightingActive,
 }) => {
   const popoverTimerRef = useRef<number | null>(null)
-  const runCounterRef = useRef(0)
-  const pendingRunIdRef = useRef<number | null>(null)
 
   const [hovered, setHovered] = useState<ActivePii | null>(null)
   const [pinned, setPinned] = useState<ActivePii | null>(null)
@@ -264,29 +262,24 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const resetScanState = useCallback(() => {
     setScanPending(false)
     setScanSummary(null)
-    pendingRunIdRef.current = null
   }, [])
 
-  const handleStartScan = useCallback(() => {
-    runCounterRef.current += 1
-    pendingRunIdRef.current = runCounterRef.current
+  const handleStartScan = useCallback(async () => {
     setScanPending(true)
     setScanSummary(null)
-    onRequestScan?.()
+    try {
+      const matches = await onRequestScan?.()
+      if (matches) {
+        setScanSummary(summarizeMatches(matches))
+      }
+    } catch (error) {
+      console.error('SpicyMask: Gemini scan failed.', error)
+    } finally {
+      setScanPending(false)
+    }
   }, [onRequestScan])
 
   const closeSignalRef = useRef(closeSignal)
-
-  useEffect(() => {
-    if (latestTrigger !== 'manual') return
-
-    const hasPendingRun = pendingRunIdRef.current !== null
-    if (!hasPendingRun) return
-
-    setScanSummary(summarizeMatches(allMatches))
-    setScanPending(false)
-    pendingRunIdRef.current = null
-  }, [latestTrigger, allMatches])
 
   useEffect(() => {
     if (!isPanelOpen) {
