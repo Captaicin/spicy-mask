@@ -63,8 +63,8 @@ interface ActivePii {
 
 const HIGHLIGHT_COLOR = tokens.colors.highlightBackground
 const POPOVER_WIDTH = 220
-const HOVER_DELAY_MS = 500
-const HIDE_DELAY_MS = 300
+const HOVER_DELAY_MS = 100
+const HIDE_DELAY_MS = 100
 
 const summarizeMatches = (
   matches: DetectionMatch[],
