@@ -51,6 +51,8 @@ interface HighlightOverlayProps {
   latestTrigger: DetectionTrigger
   isTargetFocused?: boolean
   hasValue?: boolean
+  isHighlightingActive?: boolean
+  setIsHighlightingActive?: (value: boolean) => void
 }
 
 interface ActivePii {
@@ -108,6 +110,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   latestTrigger,
   isTargetFocused,
   hasValue,
+  isHighlightingActive,
+  setIsHighlightingActive,
 }) => {
   const popoverTimerRef = useRef<number | null>(null)
   const runCounterRef = useRef(0)
@@ -444,6 +448,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             scanPending={scanPending}
             scanSummary={scanSummary}
             showMaskAllButton={showMaskAllButton}
+            isHighlightingActive={isHighlightingActive}
+            setIsHighlightingActive={setIsHighlightingActive}
           />
         </div>
       </div>
@@ -463,75 +469,101 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           overflow: 'hidden',
         }}
       >
-        {piiDetails.map(({ pii, rects }) =>
-          rects.map((rect, index) => (
-            <div
-              key={`${pii.startIndex}-${pii.endIndex}-${index}`}
-              onMouseEnter={() => handleHighlightEnter(pii, rect)}
-              onClick={() => handleClickHighlight(pii, rect)}
-              style={{
-                position: 'absolute',
-                top: `${rect.top - containerRect.top}px`,
-                left: `${rect.left - containerRect.left}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                backgroundColor: HIGHLIGHT_COLOR,
-                borderRadius: tokens.radii.sm,
-                pointerEvents: 'auto',
-                cursor: 'pointer',
-              }}
-            />
-          )),
-        )}
+        {isHighlightingActive &&
+          piiDetails.map(({ pii, rects }) =>
+            rects.map((rect, index) => (
+              <div
+                key={`${pii.startIndex}-${pii.endIndex}-${index}`}
+                onMouseEnter={() => handleHighlightEnter(pii, rect)}
+                onClick={() => handleClickHighlight(pii, rect)}
+                style={{
+                  position: 'absolute',
+                  top: `${rect.top - containerRect.top}px`,
+                  left: `${rect.left - containerRect.left}px`,
+                  width: `${rect.width}px`,
+                  height: `${rect.height}px`,
+                  backgroundColor: HIGHLIGHT_COLOR,
+                  borderRadius: tokens.radii.sm,
+                  pointerEvents: 'auto',
+                  cursor: 'pointer',
+                }}
+              />
+            )),
+          )}
       </div>
 
-      {showScanButton ? (() => {
-        const rawButtonSize = (containerRect?.height || 32) - 8
-        const buttonSize = Math.max(16, Math.min(24, rawButtonSize))
-        const gearFontSize = Math.max(12, buttonSize - 10)
-        const gemFontSize = Math.max(12, buttonSize - 12)
+      {showScanButton
+        ? (() => {
+            const rawButtonSize = (containerRect?.height || 32) - 8
+            const buttonSize = Math.max(16, Math.min(24, rawButtonSize))
+            const gearFontSize = Math.max(12, buttonSize - 10)
 
-        return (
-          <div
-            style={{
-              position: 'absolute',
-              right: tokens.spacing.s2,
-              bottom: tokens.spacing.s1,
-              display: 'flex',
-              gap: tokens.spacing.s1,
-              pointerEvents: 'auto',
-            }}
-          >
-            <button
-              ref={panelRefs.setReference}
-              type="button"
-              onClick={() => setIsPanelOpen((open) => !open)}
-              style={{
-                width: `${buttonSize}px`,
-                height: `${buttonSize}px`,
-                borderRadius: tokens.radii.full,
-                border: `1px solid ${tokens.colors.border}`,
-                background: tokens.colors.backgroundSecondary,
-                color: tokens.colors.textPrimary,
-                fontSize: `${gearFontSize}px`,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                fontWeight: tokens.typography.fontWeightBold,
-                cursor: 'pointer',
-                boxShadow: tokens.shadows.md,
-              }}
-              title="Manage ignored values and rules"
-            >
-              ⚙️
-            </button>
-            {/* Scan button removed, functionality moved to ManagementPanel */}
-          </div>
-        )
-      })() : null}
+            const showBadge =
+              !isHighlightingActive && allMatches && allMatches.length > 0
+
+            return (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: tokens.spacing.s2,
+                  bottom: tokens.spacing.s1,
+                  display: 'flex',
+                  gap: tokens.spacing.s1,
+                  pointerEvents: 'auto',
+                }}
+              >
+                <button
+                  ref={panelRefs.setReference}
+                  type="button"
+                  onClick={() => setIsPanelOpen((open) => !open)}
+                  style={{
+                    position: 'relative',
+                    width: `${buttonSize}px`,
+                    height: `${buttonSize}px`,
+                    borderRadius: tokens.radii.full,
+                    border: `1px solid ${tokens.colors.border}`,
+                    background: tokens.colors.backgroundSecondary,
+                    color: tokens.colors.textPrimary,
+                    fontSize: `${gearFontSize}px`,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    fontWeight: tokens.typography.fontWeightBold,
+                    cursor: 'pointer',
+                    boxShadow: tokens.shadows.md,
+                  }}
+                  title="Manage ignored values and rules"
+                >
+                  {showBadge && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '-2px',
+                        right: '-4px',
+                        minWidth: '16px',
+                        height: '16px',
+                        borderRadius: '8px',
+                        background: tokens.colors.accentRed,
+                        color: 'white',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: '0 4px',
+                      }}
+                    >
+                      {allMatches.length}
+                    </span>
+                  )}
+                  ⚙️
+                </button>
+              </div>
+            )
+          })()
+        : null}
       {managementPanel}
       {piiPopover}
-      {/* scanPopover removed */}
     </>
   )
 }

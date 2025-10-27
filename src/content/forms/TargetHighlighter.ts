@@ -61,6 +61,8 @@ export class TargetHighlighter {
   private closeSignal = 0
   private hasValue = false
   private latestTrigger: DetectionTrigger = 'auto'
+  private isHighlightingActive = false
+  private setIsHighlightingActive: ((value: boolean) => void) | null = null
   private lastPiiDetails: { pii: DetectionMatch; rects: DOMRect[] }[] = []
   private layoutCheckInterval: number | null = null
 
@@ -102,7 +104,11 @@ export class TargetHighlighter {
     mappings: TextNodeMapping[] | null,
     ignoredValues: string[],
     userRules: string[],
-    meta: { trigger?: DetectionTrigger } = {},
+    meta: {
+      trigger?: DetectionTrigger
+      isHighlightingActive?: boolean
+      setIsHighlightingActive?: (value: boolean) => void
+    } = {},
   ): void {
     if (this.destroyed) {
       return
@@ -115,10 +121,12 @@ export class TargetHighlighter {
     this.updateRafId = requestAnimationFrame(() => {
       this.currentValue = value
       this.currentMatches = matches
-      this.currentIgnoredValues = ignoredValues;
-      this.currentUserRules = userRules;
+      this.currentIgnoredValues = ignoredValues
+      this.currentUserRules = userRules
       this.hasValue = typeof value === 'string' && value.length > 0
       this.latestTrigger = meta.trigger ?? 'auto'
+      this.isHighlightingActive = meta.isHighlightingActive ?? this.isHighlightingActive
+      this.setIsHighlightingActive = meta.setIsHighlightingActive ?? null
 
       const hasMatches = Array.isArray(matches) && matches.length > 0
 
@@ -362,6 +370,8 @@ export class TargetHighlighter {
         latestTrigger: this.latestTrigger,
         isTargetFocused: this.isTargetFocused(),
         hasValue: this.hasValue,
+        isHighlightingActive: this.isHighlightingActive,
+        setIsHighlightingActive: this.setIsHighlightingActive ?? undefined,
       })
     )
   }

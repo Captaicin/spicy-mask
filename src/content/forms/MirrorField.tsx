@@ -98,6 +98,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
   const [ignoredValues, setIgnoredValues] = useState<string[]>([])
   const [userRules, setUserRules] = useState<string[]>([])
+  const [isHighlightingActive, setIsHighlightingActive] = useState(false)
 
   const highlighterRef = useRef<TargetHighlighter | null>(null)
   const detectionContext = useMemo<DetectionContext>(
@@ -146,6 +147,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           return
         }
 
+        if (trigger === 'manual') {
+          setIsHighlightingActive(true)
+        }
+
         setMatches(results)
 
         const currentIgnored = detectionEngine.getIgnoredValues()
@@ -154,7 +159,18 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         setUserRules(currentRules)
 
         setTimeout(() => {
-          highlighterRef.current?.update(nextValue, results, mappings, currentIgnored, currentRules, { trigger })
+          highlighterRef.current?.update(
+            nextValue,
+            results,
+            mappings,
+            currentIgnored,
+            currentRules,
+            {
+              trigger,
+              isHighlightingActive: trigger === 'manual' ? true : isHighlightingActive,
+              setIsHighlightingActive,
+            },
+          )
         }, 200);
       } catch (err) {
         warn('Detection run failed', {
@@ -164,7 +180,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         })
       }
     },
-    [detectionContext, filterId, index, mappings],
+    [detectionContext, filterId, index, mappings, isHighlightingActive],
   )
 
   const applyMask = useCallback(
@@ -384,6 +400,22 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       highlighterRef.current.setCloseSignal(closeSignal)
     }
   }, [closeSignal])
+
+  useEffect(() => {
+    // This effect ensures that when the highlight toggle changes the state,
+    // the highlighter component is re-rendered with the new visibility.
+    highlighterRef.current?.update(
+      valueRef.current,
+      matchesRef.current,
+      mappingsRef.current,
+      ignoredValues,
+      userRules,
+      {
+        isHighlightingActive,
+        setIsHighlightingActive,
+      },
+    )
+  }, [isHighlightingActive, ignoredValues, userRules, setIsHighlightingActive])
 
   const label = useMemo(() => deriveLabel(target, `Field #${index + 1}`), [target, index])
   const location = useMemo(() => target.getAttribute('name') || target.getAttribute('id') || 'Unnamed field', [target])
