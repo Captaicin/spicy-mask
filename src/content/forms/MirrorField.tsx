@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { log, warn } from '../../shared/logger'
+import { storage, STORAGE_KEYS } from '../../shared/storage'
 import type { FormElement } from './FormFilter'
 import { detectionEngine, userRuleDetector } from '../detection'
 import {
@@ -99,6 +100,29 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   const [ignoredValues, setIgnoredValues] = useState<string[]>([])
   const [userRules, setUserRules] = useState<string[]>([])
   const [isHighlightingActive, setIsHighlightingActive] = useState(false)
+
+  useEffect(() => {
+    storage.get<boolean>(STORAGE_KEYS.DEFAULT_HIGHLIGHT_ON).then((value) => {
+      if (isMountedRef.current) {
+        setIsHighlightingActive(value ?? false)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes[STORAGE_KEYS.DEFAULT_HIGHLIGHT_ON]) {
+        const newValue = changes[STORAGE_KEYS.DEFAULT_HIGHLIGHT_ON].newValue as boolean
+        setIsHighlightingActive(newValue)
+      }
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
+  }, [])
 
   const highlighterRef = useRef<TargetHighlighter | null>(null)
   const detectionContext = useMemo<DetectionContext>(

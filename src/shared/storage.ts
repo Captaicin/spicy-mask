@@ -14,5 +14,6 @@ export const storage = {
 }
 
 export const STORAGE_KEYS = {
-  color: 'color'
+  color: 'color',
+  DEFAULT_HIGHLIGHT_ON: 'defaultHighlightOn',
 } as const
