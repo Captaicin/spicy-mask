@@ -297,10 +297,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const showMaskAllButton =
     Boolean(scanSummary) && !scanPending && allMatches.length > 0
 
-
-
-
-
   const piiPopover = createPortal(
     activePii ? (
       <div
@@ -501,6 +497,18 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             const showBadge =
               !isHighlightingActive && allMatches && allMatches.length > 0
 
+            const getButtonBorderColor = () => {
+              if (piiDetails.length === 0) {
+                return tokens.colors.accentGreen // Green: All clear
+              }
+              // Orange: Scan is pending or has been run
+              if (scanPending || scanSummary !== null) {
+                return tokens.colors.accentOrange
+              }
+              // Red: Regex results exist, but scan hasn't been run
+              return tokens.colors.accentRed
+            }
+
             return (
               <div
                 style={{
@@ -521,9 +529,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                     width: `${buttonSize}px`,
                     height: `${buttonSize}px`,
                     borderRadius: tokens.radii.full,
-                    border: `1px solid ${tokens.colors.border}`,
-                    background: tokens.colors.backgroundSecondary,
-                    color: tokens.colors.textPrimary,
+                    border: `2px solid ${getButtonBorderColor()}`,
+                    background: tokens.colors.textPrimary,
+                    color: tokens.colors.backgroundPrimary,
                     fontSize: `${gearFontSize}px`,
                     display: 'flex',
                     justifyContent: 'center',
@@ -556,7 +564,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                       {allMatches.length}
                     </span>
                   )}
-                  ⚙️
+                  🌶️
                 </button>
               </div>
             )

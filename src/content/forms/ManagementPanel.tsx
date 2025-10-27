@@ -27,6 +27,50 @@ const MAX_HEIGHT = 450
 const BASE_HPAD = 0
 const EXTRA_RIGHT_PAD = 8
 
+const loadingOverlayStyles: React.CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: 'rgba(0, 0, 0, 0.5)',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 10,
+  borderRadius: tokens.radii.md,
+}
+
+const loadingImageStyles: React.CSSProperties = {
+  width: '80px',
+  height: '80px',
+}
+
+const resultsCardStyles: React.CSSProperties = {
+  background: tokens.colors.backgroundPrimary,
+  padding: tokens.spacing.s4,
+  borderRadius: tokens.radii.lg,
+  boxShadow: tokens.shadows.lg,
+  width: '80%',
+  textAlign: 'center',
+  border: `1px solid ${tokens.colors.border}`,
+}
+
+const resultsTitleStyles: React.CSSProperties = {
+  fontSize: tokens.typography.fontSizeLg,
+  fontWeight: tokens.typography.fontWeightBold,
+  color: tokens.colors.textPrimary,
+  marginBottom: tokens.spacing.s3,
+}
+
+const resultsListStyles: React.CSSProperties = {
+  listStyle: 'none',
+  padding: 0,
+  margin: `0 0 ${tokens.spacing.s4} 0`,
+  color: tokens.colors.textSecondary,
+}
+
 const panelStyles: React.CSSProperties = {
   width: 'fit-content',
   minWidth: MIN_WIDTH,
@@ -45,6 +89,7 @@ const panelStyles: React.CSSProperties = {
   boxSizing: 'border-box',
   overflow: 'hidden',
   contain: 'layout style',
+  position: 'relative',
 }
 
 const headerStyles: React.CSSProperties = {
@@ -198,6 +243,26 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   isHighlightingActive,
   setIsHighlightingActive,
 }) => {
+  const [showResultsCard, setShowResultsCard] = React.useState(false)
+  const loadingGifUrl = React.useMemo(() => {
+    try {
+      return chrome.runtime.getURL('assets/loading.gif')
+    } catch (e) {
+      return ''
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (!scanPending && scanSummary) {
+      setShowResultsCard(true)
+    }
+  }, [scanPending, scanSummary])
+
+  const handleStartScanClick = () => {
+    setShowResultsCard(false)
+    onStartScan()
+  }
+
   const detectedPiiValues = React.useMemo(() => {
     const uniqueValues = new Set(visibleMatches.map((m) => m.match))
     return Array.from(uniqueValues)
@@ -277,9 +342,19 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   }
 
   const scanButtonStyle =
-    shouldAnimate 
-      ? { ...animatedGradientButtonStyle, width: '80%' } 
+    shouldAnimate
+      ? { ...animatedGradientButtonStyle, width: '80%' }
       : { ...buttonStyles, width: '80%' }
+
+  const checkResultsButtonStyle: React.CSSProperties = {
+    ...buttonStyles,
+    background: tokens.colors.accentGreen,
+    color: tokens.colors.backgroundPrimary,
+    fontWeight: tokens.typography.fontWeightBold,
+    padding: '10px 20px',
+    width: '100%',
+    fontSize: tokens.typography.fontSizeSm,
+  }
 
   return (
     <>
@@ -348,31 +423,63 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
         `}
       </style>
       <div style={panelStyles}>
+        {(scanPending || showResultsCard) && (
+          <div style={loadingOverlayStyles}>
+            {scanPending ? (
+              <img
+                src={loadingGifUrl}
+                style={loadingImageStyles}
+                alt="Loading..."
+              />
+            ) : (
+              <div style={resultsCardStyles}>
+                <h2 style={resultsTitleStyles}>Scan Results</h2>
+                {scanSummary && Object.keys(scanSummary).length > 0 ? (
+                  <ul style={resultsListStyles}>
+                    {Object.entries(scanSummary).map(([type, count]) => (
+                      <li key={type}>
+                        {type}: {count}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No PII found.</p>
+                )}
+                <button
+                  style={checkResultsButtonStyle}
+                  onClick={() => setShowResultsCard(false)}
+                >
+                  Check Results
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <div style={headerStyles}>
-          <span>Management Panel</span>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: tokens.spacing.s2,
-          }}
-        >
-          <button
+          <span>🌶️ Spicy Mask</span>
+          <div
             style={{
-              ...buttonStyles,
-              background: tokens.colors.accentOrange,
-              color: tokens.colors.backgroundPrimary,
-              fontWeight: tokens.typography.fontWeightBold,
+              display: 'flex',
+              alignItems: 'center',
+              gap: tokens.spacing.s2,
             }}
-            onClick={onMaskAll}
           >
-            Mask all
-          </button>
-          <button style={closeButtonStyles} onClick={onClose}>
-            ×
-          </button>
+            <button
+              style={{
+                ...buttonStyles,
+                background: tokens.colors.accentOrange,
+                color: tokens.colors.backgroundPrimary,
+                fontWeight: tokens.typography.fontWeightBold,
+              }}
+              onClick={onMaskAll}
+            >
+              Mask all
+            </button>
+            <button style={closeButtonStyles} onClick={onClose}>
+              ×
+            </button>
+          </div>
         </div>
-      </div>
 
       <div style={{ ...headerStyles, borderBottom: 'none', paddingTop: tokens.spacing.s2, paddingBottom: tokens.spacing.s2 }}>
         <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}>
@@ -389,7 +496,7 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
         </label>
       </div>
 
-      <div style={{ padding: `0 ${tokens.spacing.s2}` }}>
+        {/* <div style={{ padding: `0 ${tokens.spacing.s2}` }}>
         {scanPending && !scanSummary ? (
           <span>Scanning…</span>
         ) : scanSummary ? (
@@ -413,75 +520,76 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
             )}
           </>
         ) : null}
-      </div>
+      </div> */}
 
-      <div ref={contentRef} style={contentContainerStyles}>
-        <ListSection
-          title="Detected PII"
-          items={detectedPiiValues}
-          onAction={onIgnoreValue}
-          actionLabel="Ignore"
-        />
-        <ListSection
-          title="Ignored Values"
-          items={ignoredValues}
-          onAction={onUnignore}
-          actionLabel="Restore"
-        />
-        <ListSection
-          title="User-Defined Rules"
-          items={userRules}
-          onAction={onRemoveRule}
-          actionLabel="Remove"
-        >
-          <div
-            style={{
-              padding: `0 ${tokens.spacing.s2} ${tokens.spacing.s2}`,
-              display: 'flex',
-              gap: tokens.spacing.s2,
-            }}
+        <div ref={contentRef} style={contentContainerStyles}>
+          <ListSection
+            title="Detected PII"
+            items={detectedPiiValues}
+            onAction={onIgnoreValue}
+            actionLabel="Ignore"
+          />
+          <ListSection
+            title="Ignored Values"
+            items={ignoredValues}
+            onAction={onUnignore}
+            actionLabel="Restore"
+          />
+          <ListSection
+            title="User-Defined Rules"
+            items={userRules}
+            onAction={onRemoveRule}
+            actionLabel="Remove"
           >
-            <input
-              type="text"
-              placeholder="Add new rule..."
-              value={newRule}
-              onChange={(e) => setNewRule(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
+            <div
               style={{
-                width: '100%',
-                background: tokens.colors.backgroundPrimary,
-                border: `1px solid ${tokens.colors.border}`,
-                borderRadius: tokens.radii.sm,
-                color: tokens.colors.textPrimary,
-                padding: `${tokens.spacing.s1} ${tokens.spacing.s2}`,
-                fontSize: '11px',
+                padding: `0 ${tokens.spacing.s2} ${tokens.spacing.s2}`,
+                display: 'flex',
+                gap: tokens.spacing.s2,
               }}
-            />
-            <button
-              style={{
-                ...buttonStyles,
-                background: tokens.colors.accentGreen,
-                color: tokens.colors.backgroundPrimary,
-                fontWeight: tokens.typography.fontWeightBold,
-              }}
-              onClick={handleAddRule}
             >
-              Add
-            </button>
-          </div>
-        </ListSection>
-      </div>
-      <div style={footerStyles}>
-        <div style={scanButtonContainerStyles}>
+              <input
+                type="text"
+                placeholder="Add new rule..."
+                value={newRule}
+                onChange={(e) => setNewRule(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  background: tokens.colors.backgroundPrimary,
+                  border: `1px solid ${tokens.colors.border}`,
+                  borderRadius: tokens.radii.sm,
+                  color: tokens.colors.textPrimary,
+                  padding: `${tokens.spacing.s1} ${tokens.spacing.s2}`,
+                  fontSize: '11px',
+                }}
+              />
+              <button
+                style={{
+                  ...buttonStyles,
+                  background: tokens.colors.accentGreen,
+                  color: tokens.colors.backgroundPrimary,
+                  fontWeight: tokens.typography.fontWeightBold,
+                }}
+                onClick={handleAddRule}
+              >
+                Add
+              </button>
+            </div>
+          </ListSection>
+        </div>
+        <div style={footerStyles}>
+          <div style={scanButtonContainerStyles}>
             <button
               style={scanButtonStyle}
-              onClick={onStartScan}
+              onClick={handleStartScanClick}
+              disabled={scanPending}
             >
-              Scan with Gemini
+              {scanPending ? 'Scanning PIIs...' : 'Scan with Gemini'}
             </button>
+          </div>
         </div>
       </div>
-    </div>
     </>
   )
 }
