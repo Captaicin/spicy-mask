@@ -12,6 +12,7 @@ import type {
   DetectionTrigger,
 } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
+import { error } from '../../shared/logger'
 import { ManagementPanel } from './ManagementPanel'
 import { uiContainerRegistry } from '../uiRegistry'
 import * as tokens from '../../styles/designTokens'
@@ -123,12 +124,18 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(
     null,
   )
+  const [scanError, setScanError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Don't close the panel if a scan is running, or if results/errors are displayed.
+    if (scanPending || scanSummary || scanError) {
+      return
+    }
+
     if (isTargetFocused === false || hasValue === false) {
       setIsPanelOpen(false)
     }
-  }, [isTargetFocused, hasValue])
+  }, [isTargetFocused, hasValue, scanPending, scanSummary, scanError])
 
   const activePii = pinned ?? hovered
 
@@ -262,18 +269,22 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const resetScanState = useCallback(() => {
     setScanPending(false)
     setScanSummary(null)
+    setScanError(null)
   }, [])
 
   const handleStartScan = useCallback(async () => {
     setScanPending(true)
     setScanSummary(null)
+    setScanError(null)
     try {
       const matches = await onRequestScan?.()
       if (matches) {
         setScanSummary(summarizeMatches(matches))
       }
-    } catch (error) {
-      console.error('SpicyMask: Gemini scan failed.', error)
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      error(errorMessage)
+      setScanError(errorMessage)
     } finally {
       setScanPending(false)
     }
@@ -436,6 +447,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             onStartScan={handleStartScan}
             scanPending={scanPending}
             scanSummary={scanSummary}
+            scanError={scanError}
             showMaskAllButton={showMaskAllButton}
             isHighlightingActive={isHighlightingActive}
             setIsHighlightingActive={setIsHighlightingActive}

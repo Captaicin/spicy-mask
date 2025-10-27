@@ -21,9 +21,10 @@ export const onMessage = (handler: MessageHandler): (() => void) => {
   ) => {
     Promise.resolve(handler(message as Msg, sender))
       .then((result) => sendResponse(result))
-      .catch((error: unknown) =>
-        sendResponse({ ok: false, error: (error as Error).message || 'Unknown error' })
-      )
+      .catch((error: unknown) => {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        sendResponse({ ok: false, error: errorMessage || 'Unknown error' })
+      })
 
     return true
   }

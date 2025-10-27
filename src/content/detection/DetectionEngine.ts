@@ -126,6 +126,7 @@ export class DetectionEngine {
             }
           } catch (err) {
             error('Detector execution failed', { detectorId: geminiDetector.id, message: String(err) })
+            throw err;
           }
         }
       }

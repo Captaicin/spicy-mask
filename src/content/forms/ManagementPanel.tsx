@@ -15,6 +15,7 @@ interface ManagementPanelProps {
   onStartScan: () => void
   scanPending: boolean
   scanSummary: Record<string, number> | null
+  scanError: string | null
   showMaskAllButton: boolean
   isHighlightingActive?: boolean
   setIsHighlightingActive?: (value: boolean) => void
@@ -239,7 +240,7 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   onStartScan,
   scanPending,
   scanSummary,
-  showMaskAllButton,
+  scanError,
   isHighlightingActive,
   setIsHighlightingActive,
 }) => {
@@ -253,10 +254,10 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   }, [])
 
   React.useEffect(() => {
-    if (!scanPending && scanSummary) {
+    if (!scanPending && (scanSummary || scanError)) {
       setShowResultsCard(true)
     }
-  }, [scanPending, scanSummary])
+  }, [scanPending, scanSummary, scanError])
 
   const handleStartScanClick = () => {
     setShowResultsCard(false)
@@ -434,7 +435,16 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
             ) : (
               <div style={resultsCardStyles}>
                 <h2 style={resultsTitleStyles}>Scan Results</h2>
-                {scanSummary && Object.keys(scanSummary).length > 0 ? (
+                {scanError ? (
+                  <p
+                    style={{
+                      color: tokens.colors.accentRed,
+                      marginBottom: tokens.spacing.s4,
+                    }}
+                  >
+                    {scanError}
+                  </p>
+                ) : scanSummary && Object.keys(scanSummary).length > 0 ? (
                   <ul style={resultsListStyles}>
                     {Object.entries(scanSummary).map(([type, count]) => (
                       <li key={type}>
@@ -443,13 +453,13 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
                     ))}
                   </ul>
                 ) : (
-                  <p>No PII found.</p>
+                  <p style={{ marginBottom: tokens.spacing.s4 }}>No PII found.</p>
                 )}
                 <button
                   style={checkResultsButtonStyle}
                   onClick={() => setShowResultsCard(false)}
                 >
-                  Check Results
+                  {scanError ? 'Close' : 'Check Results'}
                 </button>
               </div>
             )}

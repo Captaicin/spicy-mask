@@ -1,4 +1,3 @@
-
 import { GeminiApiResult } from '../shared/types'
 
 
@@ -49,7 +48,7 @@ async function executeLLMPrompt(
     return JSON.parse(resultStr)
   } catch (error) {
     console.error('Gemini Execution or Parsing Error:', error)
-    return null
+    throw error
   }
 }
 

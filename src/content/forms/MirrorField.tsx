@@ -203,7 +203,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           index,
           message: err instanceof Error ? err.message : String(err),
         })
-        return undefined
+        throw err
       }
     },
     [detectionContext, filterId, index, mappings, isHighlightingActive],
