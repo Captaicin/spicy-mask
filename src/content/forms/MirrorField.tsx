@@ -19,14 +19,14 @@ const isInputElement = (element: FormElement): element is HTMLInputElement =>
   element instanceof HTMLInputElement
 
 const isTextareaElement = (
-  element: FormElement,
+  element: FormElement
 ): element is HTMLTextAreaElement => element instanceof HTMLTextAreaElement
 
 const isSelectElement = (element: FormElement): element is HTMLSelectElement =>
   element instanceof HTMLSelectElement
 
 const isContentEditableElement = (
-  element: FormElement,
+  element: FormElement
 ): element is HTMLElement =>
   element instanceof HTMLElement && element.isContentEditable
 
@@ -110,7 +110,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
 }) => {
   const [value, setValue] = useState(() => getElementValue(target))
   const [options, setOptions] = useState(() =>
-    isSelectElement(target) ? listSelectOptions(target) : [],
+    isSelectElement(target) ? listSelectOptions(target) : []
   )
   const [matches, setMatches] = useState<DetectionMatch[]>([])
   const [closeSignal, setCloseSignal] = useState(0)
@@ -154,7 +154,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
       filterId,
       fieldIndex: index,
     }),
-    [target, filterId, index],
+    [target, filterId, index]
   )
 
   const isMountedRef = useRef(true)
@@ -181,7 +181,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
   const runDetection = useCallback(
     async (
       nextValue: string,
-      options: { trigger?: DetectionTrigger } = {},
+      options: { trigger?: DetectionTrigger } = {}
     ): Promise<DetectionMatch[] | undefined> => {
       const trigger = options.trigger ?? 'auto'
       const sequence = ++detectionSequenceRef.current
@@ -222,7 +222,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
               trigger,
               isHighlightingActive,
               setIsHighlightingActive,
-            },
+            }
           )
         }, 200)
         return results
@@ -235,7 +235,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
         throw err
       }
     },
-    [detectionContext, filterId, index, mappings, isHighlightingActive],
+    [detectionContext, filterId, index, mappings, isHighlightingActive]
   )
 
   const applyMask = useCallback(
@@ -293,7 +293,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
 
       setCloseSignal((token) => token + 1)
     },
-    [filterId, index, target, mappings, value],
+    [filterId, index, target, mappings, value]
   )
 
   const callbacksRef = useRef<TargetHighlighterCallbacks>({})
@@ -308,7 +308,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
       }) => {
         applyMask(selectedMatches)
       },
-      [applyMask],
+      [applyMask]
     ),
     onMaskAll: useCallback(
       ({
@@ -319,7 +319,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
       }) => {
         applyMask(allMatches)
       },
-      [applyMask],
+      [applyMask]
     ),
     onIgnoreValue: useCallback(
       (valueToIgnore: string) => {
@@ -328,7 +328,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
         if (textToScan === null) return
         void runDetection(textToScan, { trigger: 'auto' })
       },
-      [runDetection, plainText, value, target],
+      [runDetection, plainText, value, target]
     ),
     onUnignore: useCallback(
       (valueToUnignore: string) => {
@@ -337,7 +337,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
         if (textToScan === null) return
         void runDetection(textToScan, { trigger: 'auto' })
       },
-      [runDetection, plainText, value, target],
+      [runDetection, plainText, value, target]
     ),
     onAddRule: useCallback(
       (ruleToAdd: string) => {
@@ -346,7 +346,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
         if (textToScan === null) return
         void runDetection(textToScan, { trigger: 'auto' })
       },
-      [runDetection, plainText, value, target],
+      [runDetection, plainText, value, target]
     ),
     onRemoveRule: useCallback(
       (ruleToRemove: string) => {
@@ -355,7 +355,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
         if (textToScan === null) return
         void runDetection(textToScan, { trigger: 'auto' })
       },
-      [runDetection, plainText, value, target],
+      [runDetection, plainText, value, target]
     ),
     onRequestScan: useCallback(() => {
       const textToScan = isContentEditableElement(target) ? plainText : value
@@ -368,7 +368,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
         matchesRef.current,
         mappingsRef.current,
         ignoredValues,
-        userRules,
+        userRules
       )
     }, [ignoredValues, userRules]),
   }
@@ -453,12 +453,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
       const { plainText: nextPlainText, mappings: nextMappings } =
         extractTextWithMapping(target as HTMLElement)
 
-      log('MirrorField contenteditable mutation', {
-        filterId,
-        index,
-        value: nextPlainText,
-      })
-
       setPlainText(nextPlainText)
       setMappings(nextMappings)
       setValue(nextPlainText)
@@ -513,20 +507,20 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
       {
         isHighlightingActive,
         setIsHighlightingActive,
-      },
+      }
     )
   }, [isHighlightingActive, setIsHighlightingActive])
 
   const label = useMemo(
     () => deriveLabel(target, `Field #${index + 1}`),
-    [target, index],
+    [target, index]
   )
   const location = useMemo(
     () =>
       target.getAttribute('name') ||
       target.getAttribute('id') ||
       'Unnamed field',
-    [target],
+    [target]
   )
 
   const handleChange: React.ChangeEventHandler<
