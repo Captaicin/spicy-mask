@@ -54,7 +54,7 @@ export class GeminiDetector extends BaseDetector {
         allMatches.push({
           detectorId: this.id,
           source: 'gemini',
-          priority: 130, // Default priority for Gemini matches
+          priority: 100, // Default priority for Gemini matches
           match: searchTerm,
           startIndex: currentIndex,
           endIndex: currentIndex + searchTerm.length,

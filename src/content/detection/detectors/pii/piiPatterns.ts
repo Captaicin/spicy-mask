@@ -13,25 +13,25 @@ export const PII_PATTERNS: Record<string, PiiPattern> = {
       /\b(?:3[47]\d{2}[\s-]?\d{6}[\s-]?\d{5}|(?:4\d{3}|5[1-5]\d{2}|6011)[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})\b/g,
     label: 'Credit Card',
     entityType: 'credit_card_number',
-    priority: 120,
+    priority: 90,
   },
   SSN: {
     regex: /\b\d{3}-\d{2}-\d{4}\b/g,
     label: 'SSN',
     entityType: 'social_security_number',
-    priority: 110,
+    priority: 80,
   },
   EMAIL: {
     regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
     label: 'Email',
     entityType: 'email',
-    priority: 100,
+    priority: 80,
   },
   PHONE_NUMBER_NAIVE: {
     regex: /(?<=(?:^|\s|:))[+(]?(?:\d[ \-().~;:–]*){7,15}\d\b/g,
     label: 'Phone Number',
     entityType: 'phone_number',
-    priority: 90,
+    priority: 70,
   },
 }
 

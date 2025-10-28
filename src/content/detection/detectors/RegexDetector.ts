@@ -60,7 +60,7 @@ export class RegexDetector extends BaseDetector {
       langParts.length > 1
         ? langParts[langParts.length - 1].toUpperCase()
         : undefined
-    const fallbackCountries = ['US', 'GB', 'KR', 'DE', 'FR', 'IN', 'CN', 'BR']
+    const fallbackCountries = ['US', 'KR']
     const fallbackOnlyCountries = fallbackCountries.filter(
       (c) => c !== browserCountry,
     )
