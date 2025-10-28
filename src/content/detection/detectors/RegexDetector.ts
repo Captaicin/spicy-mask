@@ -119,7 +119,6 @@ export class RegexDetector extends BaseDetector {
 
       if (pii.entityType === 'phone_number') {
         // Heuristic 1: Block common date/timestamp formats
-        console.log(pii.value)
         const DATE_TIME_REGEX = new RegExp(
           [
             '(?:^|\\s)(\\d{4}[-/\\s](?:0?[1-9]|1[0-2])[-/\\s](?:0?[1-9]|[12]\\d|3[01])(?:[-/\\s]+\\d+)?)(?:$|\\s)',

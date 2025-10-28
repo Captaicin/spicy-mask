@@ -60,7 +60,6 @@ export class TargetHighlighter {
   private currentUserRules: string[] = []
   private closeSignal = 0
   private hasValue = false
-  private latestTrigger: DetectionTrigger = 'auto'
   private isHighlightingActive = false
   private setIsHighlightingActive: ((value: boolean) => void) | null = null
   private lastPiiDetails: { pii: DetectionMatch; rects: DOMRect[] }[] = []
@@ -124,7 +123,6 @@ export class TargetHighlighter {
       this.currentIgnoredValues = ignoredValues
       this.currentUserRules = userRules
       this.hasValue = typeof value === 'string' && value.length > 0
-      this.latestTrigger = meta.trigger ?? 'auto'
       this.isHighlightingActive = meta.isHighlightingActive ?? this.isHighlightingActive
       this.setIsHighlightingActive = meta.setIsHighlightingActive ?? null
 
@@ -367,7 +365,6 @@ export class TargetHighlighter {
         onRequestScan: this.callbacks.onRequestScan,
         closeSignal: this.closeSignal,
         showScanButton,
-        latestTrigger: this.latestTrigger,
         isTargetFocused: this.isTargetFocused(),
         hasValue: this.hasValue,
         isHighlightingActive: this.isHighlightingActive,

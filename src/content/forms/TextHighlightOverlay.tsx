@@ -7,10 +7,7 @@ import {
   flip,
   shift,
 } from '@floating-ui/react'
-import type {
-  DetectionContext,
-  DetectionTrigger,
-} from '../detection/detectors/BaseDetector'
+import type { DetectionContext } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
 import { error } from '../../shared/logger'
 import { ManagementPanel } from './ManagementPanel'
@@ -49,7 +46,6 @@ interface HighlightOverlayProps {
   onRequestScan?: () => Promise<DetectionMatch[] | undefined>
   closeSignal: number
   showScanButton: boolean
-  latestTrigger: DetectionTrigger
   isTargetFocused?: boolean
   hasValue?: boolean
   isHighlightingActive?: boolean
@@ -108,7 +104,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   onRequestScan,
   closeSignal,
   showScanButton,
-  latestTrigger,
   isTargetFocused,
   hasValue,
   isHighlightingActive,
@@ -502,6 +497,9 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             const showBadge =
               !isHighlightingActive && allMatches && allMatches.length > 0
 
+            const badgeContent =
+              allMatches.length > 9 ? '9+' : allMatches.length
+
             const getButtonBorderColor = () => {
               if (piiDetails.length === 0) {
                 return tokens.colors.accentGreen // Green: All clear
@@ -566,7 +564,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                         padding: '0 4px',
                       }}
                     >
-                      {allMatches.length}
+                      {badgeContent}
                     </span>
                   )}
                   🌶️

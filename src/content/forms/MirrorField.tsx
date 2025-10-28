@@ -191,7 +191,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
             currentRules,
             {
               trigger,
-              isHighlightingActive: trigger === 'manual' ? true : isHighlightingActive,
+              isHighlightingActive,
               setIsHighlightingActive,
             },
           )
@@ -441,7 +441,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         setIsHighlightingActive,
       },
     )
-  }, [isHighlightingActive, ignoredValues, userRules, setIsHighlightingActive])
+  }, [isHighlightingActive, setIsHighlightingActive])
 
   const label = useMemo(() => deriveLabel(target, `Field #${index + 1}`), [target, index])
   const location = useMemo(() => target.getAttribute('name') || target.getAttribute('id') || 'Unnamed field', [target])
