@@ -63,7 +63,7 @@ const HOVER_DELAY_MS = 100
 const HIDE_DELAY_MS = 100
 
 const summarizeMatches = (
-  matches: DetectionMatch[],
+  matches: DetectionMatch[]
 ): Record<string, number> => {
   return matches.reduce(
     (acc, match) => {
@@ -71,7 +71,7 @@ const summarizeMatches = (
       acc[type] = (acc[type] || 0) + 1
       return acc
     },
-    {} as Record<string, number>,
+    {} as Record<string, number>
   )
 }
 
@@ -117,7 +117,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
 
   const [scanPending, setScanPending] = useState(false)
   const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(
-    null,
+    null
   )
   const [scanError, setScanError] = useState<string | null>(null)
 
@@ -191,7 +191,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         setHovered({ pii, anchorRect: rect })
       }, HOVER_DELAY_MS)
     },
-    [pinned, clearPopoverTimer],
+    [pinned, clearPopoverTimer]
   )
 
   const handleInteractionLeave = useCallback(() => {
@@ -215,7 +215,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       setPinned({ pii, anchorRect: rect })
       setHovered(null)
     },
-    [context, onFocusMatch, target, clearPopoverTimer],
+    [context, onFocusMatch, target, clearPopoverTimer]
   )
 
   useEffect(() => {
@@ -416,7 +416,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         </div>
       </div>
     ) : null,
-    document.body,
+    document.body
   )
 
   const managementPanel = createPortal(
@@ -450,7 +450,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         </div>
       </div>
     ) : null,
-    document.body,
+    document.body
   )
 
   return (
@@ -484,7 +484,7 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                   cursor: 'pointer',
                 }}
               />
-            )),
+            ))
           )}
       </div>
 
@@ -549,8 +549,8 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
                     <span
                       style={{
                         position: 'absolute',
-                        top: '-2px',
-                        right: '-4px',
+                        top: '-6px',
+                        right: '-6px',
                         minWidth: '16px',
                         height: '16px',
                         borderRadius: '8px',
