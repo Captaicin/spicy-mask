@@ -436,15 +436,16 @@ export class TargetHighlighter {
 
     const twin = document.createElement('div')
     const styles = window.getComputedStyle(input)
+    const inputRect = input.getBoundingClientRect()
 
     const twinStyles: Partial<CSSStyleDeclaration> = {
-      position: 'absolute',
+      position: 'fixed',
       visibility: 'hidden',
       pointerEvents: 'none',
-      top: `${input.offsetTop}px`,
-      left: `${input.offsetLeft}px`,
-      width: `${input.clientWidth}px`,
-      height: `${input.clientHeight}px`,
+      top: `${inputRect.top}px`,
+      left: `${inputRect.left}px`,
+      width: `${inputRect.width}px`,
+      height: `${inputRect.height}px`,
       overflow: 'auto',
       whiteSpace: styles.whiteSpace,
       wordWrap: styles.wordWrap,
