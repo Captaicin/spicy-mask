@@ -14,7 +14,8 @@ export class MockFormFilter extends FormFilter {
     super({
       id: 'mock',
       label: 'Mock / test inputs',
-      description: 'Inputs flagged for mocks via data attributes, name, id, or placeholder.'
+      description:
+        'Inputs flagged for mocks via data attributes, name, id, or placeholder.',
     })
   }
 

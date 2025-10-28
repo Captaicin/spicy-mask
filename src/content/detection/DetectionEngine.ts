@@ -81,33 +81,44 @@ export class DetectionEngine {
       const currentPiiDictionary = new Map(this.geminiCache)
 
       // 2. Run dynamic detectors (Regex, User Rules) and update the dictionary.
-      const dynamicDetectors = this.detectors.filter(d => d.id !== 'gemini-detector')
+      const dynamicDetectors = this.detectors.filter(
+        (d) => d.id !== 'gemini-detector',
+      )
       for (const detector of dynamicDetectors) {
         try {
-          const matches = await detector.detect(enrichedInput);
+          const matches = await detector.detect(enrichedInput)
           for (const match of matches) {
             // Add or overwrite with higher priority results from live detectors
-            if (!currentPiiDictionary.has(match.match) || match.priority > (currentPiiDictionary.get(match.match)?.priority ?? -1)) {
-                currentPiiDictionary.set(match.match, {
-                    type: match.entityType,
-                    source: match.source,
-                    priority: match.priority,
-                    reason: match.reason,
-                    detectorId: match.detectorId,
-                })
+            if (
+              !currentPiiDictionary.has(match.match) ||
+              match.priority >
+                (currentPiiDictionary.get(match.match)?.priority ?? -1)
+            ) {
+              currentPiiDictionary.set(match.match, {
+                type: match.entityType,
+                source: match.source,
+                priority: match.priority,
+                reason: match.reason,
+                detectorId: match.detectorId,
+              })
             }
           }
         } catch (err) {
-          error('Detector execution failed', { detectorId: detector.id, message: String(err) })
+          error('Detector execution failed', {
+            detectorId: detector.id,
+            message: String(err),
+          })
         }
       }
 
       // 3. If manual trigger, run Gemini and update the cache.
       if (enrichedInput.trigger === 'manual') {
-        const geminiDetector = this.detectors.find(d => d.id === 'gemini-detector')
+        const geminiDetector = this.detectors.find(
+          (d) => d.id === 'gemini-detector',
+        )
         if (geminiDetector) {
           try {
-            const matches = await geminiDetector.detect(enrichedInput);
+            const matches = await geminiDetector.detect(enrichedInput)
             for (const match of matches) {
               const existing = currentPiiDictionary.get(match.match)
               // Add or overwrite if new match has higher priority
@@ -125,7 +136,11 @@ export class DetectionEngine {
               }
             }
           } catch (err) {
-            error('Detector execution failed', { detectorId: geminiDetector.id, message: String(err) })
+            error('Detector execution failed', {
+              detectorId: geminiDetector.id,
+              message: String(err),
+            })
+            throw err
           }
         }
       }
@@ -134,11 +149,16 @@ export class DetectionEngine {
       let allFoundMatches: DetectionMatch[] = []
       for (const [value, meta] of currentPiiDictionary.entries()) {
         if (this.ignoredValues.has(value)) {
-          continue;
+          continue
         }
 
-        let currentIndex = -1;
-        while ((currentIndex = enrichedInput.value.indexOf(value, currentIndex + 1)) !== -1) {
+        let currentIndex = -1
+        while (
+          (currentIndex = enrichedInput.value.indexOf(
+            value,
+            currentIndex + 1,
+          )) !== -1
+        ) {
           const match: DetectionMatch = {
             detectorId: meta.detectorId,
             source: meta.source as any,
@@ -160,20 +180,30 @@ export class DetectionEngine {
       // 5. Resolve overlaps
       allFoundMatches.sort((a, b) => {
         // 1. Longer match wins
-        const lengthDifference = b.match.length - a.match.length;
+        const lengthDifference = b.match.length - a.match.length
         if (lengthDifference !== 0) {
-          return lengthDifference;
+          return lengthDifference
         }
         // 2. Fallback to priority
-        return b.priority - a.priority;
-      });
+        return b.priority - a.priority
+      })
       const finalMatches: DetectionMatch[] = []
-      const isOverlapping = (matchA: DetectionMatch, matchB: DetectionMatch): boolean => {
-        return Math.max(matchA.startIndex, matchB.startIndex) < Math.min(matchA.endIndex, matchB.endIndex)
+      const isOverlapping = (
+        matchA: DetectionMatch,
+        matchB: DetectionMatch,
+      ): boolean => {
+        return (
+          Math.max(matchA.startIndex, matchB.startIndex) <
+          Math.min(matchA.endIndex, matchB.endIndex)
+        )
       }
 
       for (const currentMatch of allFoundMatches) {
-        if (!finalMatches.some((finalMatch) => isOverlapping(currentMatch, finalMatch))) {
+        if (
+          !finalMatches.some((finalMatch) =>
+            isOverlapping(currentMatch, finalMatch),
+          )
+        ) {
           finalMatches.push(currentMatch)
         }
       }

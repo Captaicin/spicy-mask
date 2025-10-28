@@ -62,8 +62,12 @@ export class FormMirrorManager {
         React.createElement(
           React.StrictMode,
           null,
-          React.createElement(MirrorField, { target: element, index, filterId })
-        )
+          React.createElement(MirrorField, {
+            target: element,
+            index,
+            filterId,
+          }),
+        ),
       )
     }
 

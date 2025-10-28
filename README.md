@@ -90,7 +90,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
   - `options/`
     - `index.html`: Options page shell.
     - `main.tsx`: React bootstrap.
-    - `Options.tsx`: Options UI component listing filters and guidance.
+    - `Options.tsx`: Options UI component to configure extension settings, such as the default state for PII highlighting.
     - `README.md`: Module notes.
   - `popup/`
     - `index.html`: Popup page shell.

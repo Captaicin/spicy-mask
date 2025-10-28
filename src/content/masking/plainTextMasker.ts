@@ -1,4 +1,4 @@
-import type { DetectionMatch } from '../../shared/types';
+import type { DetectionMatch } from '../../shared/types'
 
 export interface MaskOptions {
   maskChar?: string
@@ -6,7 +6,10 @@ export interface MaskOptions {
 
 const DEFAULT_MASK_CHAR = '*'
 
-const clampMatch = (valueLength: number, match: DetectionMatch): DetectionMatch | null => {
+const clampMatch = (
+  valueLength: number,
+  match: DetectionMatch,
+): DetectionMatch | null => {
   if (match.endIndex <= match.startIndex) {
     return null
   }
@@ -21,14 +24,14 @@ const clampMatch = (valueLength: number, match: DetectionMatch): DetectionMatch 
   return {
     ...match,
     startIndex: start,
-    endIndex: end
+    endIndex: end,
   }
 }
 
 export const maskValueWithMatches = (
   value: string,
   matches: DetectionMatch[],
-  options: MaskOptions = {}
+  options: MaskOptions = {},
 ): { masked: string; changed: boolean } => {
   if (!value || matches.length === 0) {
     return { masked: value, changed: false }

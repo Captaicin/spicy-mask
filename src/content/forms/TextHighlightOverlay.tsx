@@ -7,11 +7,9 @@ import {
   flip,
   shift,
 } from '@floating-ui/react'
-import type {
-  DetectionContext,
-  DetectionTrigger,
-} from '../detection/detectors/BaseDetector'
+import type { DetectionContext } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
+import { error } from '../../shared/logger'
 import { ManagementPanel } from './ManagementPanel'
 import { uiContainerRegistry } from '../uiRegistry'
 import * as tokens from '../../styles/designTokens'
@@ -45,12 +43,13 @@ interface HighlightOverlayProps {
   onUnignore?: (value: string) => void
   onAddRule?: (rule: string) => void
   onRemoveRule?: (rule: string) => void
-  onRequestScan?: () => void
+  onRequestScan?: () => Promise<DetectionMatch[] | undefined>
   closeSignal: number
   showScanButton: boolean
-  latestTrigger: DetectionTrigger
   isTargetFocused?: boolean
   hasValue?: boolean
+  isHighlightingActive?: boolean
+  setIsHighlightingActive?: (value: boolean) => void
 }
 
 interface ActivePii {
@@ -60,8 +59,8 @@ interface ActivePii {
 
 const HIGHLIGHT_COLOR = tokens.colors.highlightBackground
 const POPOVER_WIDTH = 220
-const HOVER_DELAY_MS = 500
-const HIDE_DELAY_MS = 300
+const HOVER_DELAY_MS = 100
+const HIDE_DELAY_MS = 100
 
 const summarizeMatches = (
   matches: DetectionMatch[],
@@ -105,30 +104,33 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   onRequestScan,
   closeSignal,
   showScanButton,
-  latestTrigger,
   isTargetFocused,
   hasValue,
+  isHighlightingActive,
+  setIsHighlightingActive,
 }) => {
   const popoverTimerRef = useRef<number | null>(null)
-  const runCounterRef = useRef(0)
-  const pendingRunIdRef = useRef<number | null>(null)
 
   const [hovered, setHovered] = useState<ActivePii | null>(null)
   const [pinned, setPinned] = useState<ActivePii | null>(null)
-
-  const [isScanOpen, setIsScanOpen] = useState(false)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
+
   const [scanPending, setScanPending] = useState(false)
   const [scanSummary, setScanSummary] = useState<Record<string, number> | null>(
     null,
   )
+  const [scanError, setScanError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Don't close the panel if a scan is running, or if results/errors are displayed.
+    if (scanPending || scanSummary || scanError) {
+      return
+    }
+
     if (isTargetFocused === false || hasValue === false) {
       setIsPanelOpen(false)
-      setIsScanOpen(false)
     }
-  }, [isTargetFocused, hasValue])
+  }, [isTargetFocused, hasValue, scanPending, scanSummary, scanError])
 
   const activePii = pinned ?? hovered
 
@@ -142,14 +144,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
         ? { getBoundingClientRect: () => activePii.anchorRect }
         : null) as any,
     },
-  })
-
-  const { refs: scanRefs, floatingStyles: scanFloatingStyles } = useFloating({
-    open: isScanOpen,
-    onOpenChange: setIsScanOpen,
-    placement: 'top-start',
-    whileElementsMounted: autoUpdate,
-    middleware: [offset(8), flip(), shift({ padding: 8 })],
   })
 
   const { refs: panelRefs, floatingStyles: panelFloatingStyles } = useFloating({
@@ -187,7 +181,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     clearPopoverTimer()
     setPinned(null)
     setHovered(null)
-    setIsScanOpen(false)
   }, [target, clearPopoverTimer])
 
   const handleHighlightEnter = useCallback(
@@ -221,7 +214,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
       clearPopoverTimer()
       setPinned({ pii, anchorRect: rect })
       setHovered(null)
-      setIsScanOpen(false)
     },
     [context, onFocusMatch, target, clearPopoverTimer],
   )
@@ -272,35 +264,34 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
   const resetScanState = useCallback(() => {
     setScanPending(false)
     setScanSummary(null)
-    pendingRunIdRef.current = null
+    setScanError(null)
   }, [])
 
-  const handleStartScan = useCallback(() => {
-    runCounterRef.current += 1
-    pendingRunIdRef.current = runCounterRef.current
+  const handleStartScan = useCallback(async () => {
     setScanPending(true)
     setScanSummary(null)
-    onRequestScan?.()
+    setScanError(null)
+    try {
+      const matches = await onRequestScan?.()
+      if (matches) {
+        setScanSummary(summarizeMatches(matches))
+      }
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      error(errorMessage)
+      setScanError(errorMessage)
+    } finally {
+      setScanPending(false)
+    }
   }, [onRequestScan])
 
   const closeSignalRef = useRef(closeSignal)
 
   useEffect(() => {
-    if (latestTrigger !== 'manual') return
-
-    const hasPendingRun = pendingRunIdRef.current !== null
-    if (!hasPendingRun) return
-
-    setScanSummary(summarizeMatches(allMatches))
-    setScanPending(false)
-    pendingRunIdRef.current = null
-  }, [latestTrigger, allMatches])
-
-  useEffect(() => {
-    if (!isScanOpen) {
+    if (!isPanelOpen) {
       resetScanState()
     }
-  }, [isScanOpen, resetScanState])
+  }, [isPanelOpen, resetScanState])
 
   const showMaskAllButton =
     Boolean(scanSummary) && !scanPending && allMatches.length > 0
@@ -428,113 +419,6 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
     document.body,
   )
 
-  const scanPopover = createPortal(
-    isScanOpen ? (
-      <div
-        ref={scanRefs.setFloating}
-        style={{
-          ...scanFloatingStyles,
-          width: '180px',
-          padding: tokens.spacing.s3,
-          borderRadius: tokens.radii.md,
-          background: tokens.colors.backgroundSecondary,
-          color: tokens.colors.textPrimary,
-          boxShadow: tokens.shadows.xl,
-          border: `1px solid ${tokens.colors.border}`,
-          pointerEvents: 'auto',
-          fontFamily: tokens.typography.fontFamilyBase,
-          zIndex: 2147483647,
-          maxHeight: '400px',
-          overflowY: 'auto',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setIsScanOpen(false)}
-          style={{
-            position: 'absolute',
-            top: tokens.spacing.s2,
-            right: tokens.spacing.s2,
-            width: '20px',
-            height: '20px',
-            border: 'none',
-            background: 'transparent',
-            fontSize: tokens.typography.fontSizeMd,
-            lineHeight: '20px',
-            textAlign: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          ×
-        </button>
-        <div
-          style={{
-            paddingBottom: tokens.spacing.s2,
-            marginBottom: tokens.spacing.s2,
-            borderBottom: `1px solid ${tokens.colors.border}`,
-            fontSize: tokens.typography.fontSizeSm,
-            fontWeight: tokens.typography.fontWeightBold,
-          }}
-        >
-          Scan Tools
-        </div>
-        <button
-          type="button"
-          onClick={handleStartScan}
-          style={{
-            width: '100%',
-            padding: '6px 10px',
-            borderRadius: tokens.radii.sm,
-            border: 'none',
-            background: tokens.colors.accentGreen,
-            color: tokens.colors.backgroundPrimary,
-            fontWeight: tokens.typography.fontWeightBold,
-            cursor: 'pointer',
-            fontSize: tokens.typography.fontSizeXs,
-          }}
-        >
-          Start Scan
-        </button>
-        <div
-          style={{
-            marginTop: tokens.spacing.s3,
-            fontSize: tokens.typography.fontSizeXs,
-            color: tokens.colors.textSecondary,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {scanPending && !scanSummary ? (
-            <span>Scanning…</span>
-          ) : scanSummary ? (
-            <>
-              <span
-                style={{
-                  fontWeight: tokens.typography.fontWeightBold,
-                  color: tokens.colors.textPrimary,
-                }}
-              >
-                Results
-              </span>
-              {Object.entries(scanSummary).length > 0 ? (
-                Object.entries(scanSummary).map(([type, count]) => (
-                  <span key={type} style={{ marginLeft: tokens.spacing.s2 }}>
-                    • {type}: {count}
-                  </span>
-                ))
-              ) : (
-                <span>No PII found.</span>
-              )}
-            </>
-          ) : (
-            <span>Run Start Scan to scan PII with Gemini Nano</span>
-          )}
-        </div>
-      </div>
-    ) : null,
-    document.body,
-  )
-
   const managementPanel = createPortal(
     isPanelOpen && onUnignore && onAddRule && onRemoveRule && onIgnoreValue ? (
       <div ref={panelWrapperRef}>
@@ -555,6 +439,13 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
             onRemoveRule={onRemoveRule}
             onClose={() => setIsPanelOpen(false)}
             onMaskAll={handleMaskAll}
+            onStartScan={handleStartScan}
+            scanPending={scanPending}
+            scanSummary={scanSummary}
+            scanError={scanError}
+            showMaskAllButton={showMaskAllButton}
+            isHighlightingActive={isHighlightingActive}
+            setIsHighlightingActive={setIsHighlightingActive}
           />
         </div>
       </div>
@@ -574,97 +465,116 @@ const TextHighlightOverlay: React.FC<HighlightOverlayProps> = ({
           overflow: 'hidden',
         }}
       >
-        {piiDetails.map(({ pii, rects }) =>
-          rects.map((rect, index) => (
-            <div
-              key={`${pii.startIndex}-${pii.endIndex}-${index}`}
-              onMouseEnter={() => handleHighlightEnter(pii, rect)}
-              onClick={() => handleClickHighlight(pii, rect)}
-              style={{
-                position: 'absolute',
-                top: `${rect.top - containerRect.top}px`,
-                left: `${rect.left - containerRect.left}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                backgroundColor: HIGHLIGHT_COLOR,
-                borderRadius: tokens.radii.sm,
-                pointerEvents: 'auto',
-                cursor: 'pointer',
-              }}
-            />
-          )),
-        )}
+        {isHighlightingActive &&
+          piiDetails.map(({ pii, rects }) =>
+            rects.map((rect, index) => (
+              <div
+                key={`${pii.startIndex}-${pii.endIndex}-${index}`}
+                onMouseEnter={() => handleHighlightEnter(pii, rect)}
+                onClick={() => handleClickHighlight(pii, rect)}
+                style={{
+                  position: 'absolute',
+                  top: `${rect.top - containerRect.top}px`,
+                  left: `${rect.left - containerRect.left}px`,
+                  width: `${rect.width}px`,
+                  height: `${rect.height}px`,
+                  backgroundColor: HIGHLIGHT_COLOR,
+                  borderRadius: tokens.radii.sm,
+                  pointerEvents: 'auto',
+                  cursor: 'pointer',
+                }}
+              />
+            )),
+          )}
       </div>
 
-      {showScanButton ? (() => {
-        const rawButtonSize = (containerRect?.height || 32) - 8
-        const buttonSize = Math.max(16, Math.min(24, rawButtonSize))
-        const gearFontSize = Math.max(12, buttonSize - 10)
-        const gemFontSize = Math.max(12, buttonSize - 12)
+      {showScanButton
+        ? (() => {
+            const rawButtonSize = (containerRect?.height || 32) - 8
+            const buttonSize = Math.max(16, Math.min(24, rawButtonSize))
+            const gearFontSize = Math.max(12, buttonSize - 10)
 
-        return (
-          <div
-            style={{
-              position: 'absolute',
-              right: tokens.spacing.s2,
-              bottom: tokens.spacing.s1,
-              display: 'flex',
-              gap: tokens.spacing.s1,
-              pointerEvents: 'auto',
-            }}
-          >
-            <button
-              ref={panelRefs.setReference}
-              type="button"
-              onClick={() => setIsPanelOpen((open) => !open)}
-              style={{
-                width: `${buttonSize}px`,
-                height: `${buttonSize}px`,
-                borderRadius: tokens.radii.full,
-                border: `1px solid ${tokens.colors.border}`,
-                background: tokens.colors.backgroundSecondary,
-                color: tokens.colors.textPrimary,
-                fontSize: `${gearFontSize}px`,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                fontWeight: tokens.typography.fontWeightBold,
-                cursor: 'pointer',
-                boxShadow: tokens.shadows.md,
-              }}
-              title="Manage ignored values and rules"
-            >
-              ⚙️
-            </button>
-            <button
-              ref={scanRefs.setReference}
-              type="button"
-              onClick={() => setIsScanOpen((open) => !open)}
-              style={{
-                width: `${buttonSize}px`,
-                height: `${buttonSize}px`,
-                borderRadius: tokens.radii.full,
-                border: 'none',
-                background: tokens.colors.textLink,
-                color: tokens.colors.textPrimary,
-                fontSize: `${gemFontSize}px`,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                fontWeight: tokens.typography.fontWeightBold,
-                cursor: 'pointer',
-                boxShadow: tokens.shadows.md,
-              }}
-              title="Scan for sensitive text"
-            >
-              ✦
-            </button>
-          </div>
-        )
-      })() : null}
+            const showBadge =
+              !isHighlightingActive && allMatches && allMatches.length > 0
+
+            const badgeContent =
+              allMatches.length > 9 ? '9+' : allMatches.length
+
+            const getButtonBorderColor = () => {
+              if (piiDetails.length === 0) {
+                return tokens.colors.accentGreen // Green: All clear
+              }
+              // Orange: Scan is pending or has been run
+              if (scanPending || scanSummary !== null) {
+                return tokens.colors.accentOrange
+              }
+              // Red: Regex results exist, but scan hasn't been run
+              return tokens.colors.accentRed
+            }
+
+            return (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: tokens.spacing.s2,
+                  bottom: tokens.spacing.s1,
+                  display: 'flex',
+                  gap: tokens.spacing.s1,
+                  pointerEvents: 'auto',
+                }}
+              >
+                <button
+                  ref={panelRefs.setReference}
+                  type="button"
+                  onClick={() => setIsPanelOpen((open) => !open)}
+                  style={{
+                    position: 'relative',
+                    width: `${buttonSize}px`,
+                    height: `${buttonSize}px`,
+                    borderRadius: tokens.radii.full,
+                    border: `2px solid ${getButtonBorderColor()}`,
+                    background: tokens.colors.textPrimary,
+                    color: tokens.colors.backgroundPrimary,
+                    fontSize: `${gearFontSize}px`,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    fontWeight: tokens.typography.fontWeightBold,
+                    cursor: 'pointer',
+                    boxShadow: tokens.shadows.md,
+                  }}
+                  title="Manage ignored values and rules"
+                >
+                  {showBadge && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '-2px',
+                        right: '-4px',
+                        minWidth: '16px',
+                        height: '16px',
+                        borderRadius: '8px',
+                        background: tokens.colors.accentRed,
+                        color: 'white',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: '0 4px',
+                      }}
+                    >
+                      {badgeContent}
+                    </span>
+                  )}
+                  🌶️
+                </button>
+              </div>
+            )
+          })()
+        : null}
       {managementPanel}
       {piiPopover}
-      {scanPopover}
     </>
   )
 }

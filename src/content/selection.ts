@@ -7,8 +7,8 @@ export function getSelectionOffsets(
   let start = -1
   let end = -1
 
-  const startMapping = mappings.find(m => m.node === range.startContainer)
-  const endMapping = mappings.find(m => m.node === range.endContainer)
+  const startMapping = mappings.find((m) => m.node === range.startContainer)
+  const endMapping = mappings.find((m) => m.node === range.endContainer)
 
   if (startMapping) {
     start = startMapping.start + range.startOffset

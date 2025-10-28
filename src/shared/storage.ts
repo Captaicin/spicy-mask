@@ -10,9 +10,10 @@ export const storage = {
     return new Promise((resolve) => {
       chrome.storage.sync.set({ [key]: value }, () => resolve())
     })
-  }
+  },
 }
 
 export const STORAGE_KEYS = {
-  color: 'color'
+  color: 'color',
+  DEFAULT_HIGHLIGHT_ON: 'defaultHighlightOn',
 } as const

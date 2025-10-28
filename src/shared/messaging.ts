@@ -2,7 +2,7 @@ import { Msg, MsgResponse } from './types'
 
 type MessageHandler = (
   message: Msg,
-  sender: chrome.runtime.MessageSender
+  sender: chrome.runtime.MessageSender,
 ) => Promise<MsgResponse> | MsgResponse
 
 export const sendMessage = (message: Msg): Promise<MsgResponse> => {
@@ -17,13 +17,15 @@ export const onMessage = (handler: MessageHandler): (() => void) => {
   const listener: Parameters<typeof chrome.runtime.onMessage.addListener>[0] = (
     message,
     sender,
-    sendResponse
+    sendResponse,
   ) => {
     Promise.resolve(handler(message as Msg, sender))
       .then((result) => sendResponse(result))
-      .catch((error: unknown) =>
-        sendResponse({ ok: false, error: (error as Error).message || 'Unknown error' })
-      )
+      .catch((error: unknown) => {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error)
+        sendResponse({ ok: false, error: errorMessage || 'Unknown error' })
+      })
 
     return true
   }

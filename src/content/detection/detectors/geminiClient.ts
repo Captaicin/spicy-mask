@@ -2,7 +2,6 @@ import { sendMessage } from '../../../shared/messaging'
 import { error } from '../../../shared/logger'
 import type { GeminiApiResult, MsgResponse } from '../../../shared/types'
 
-
 export const requestGeminiPiiAnalysis = async (
   text: string,
 ): Promise<GeminiApiResult[]> => {
@@ -12,8 +11,10 @@ export const requestGeminiPiiAnalysis = async (
       payload: { text },
     })
     if (!response.ok) {
-      error('Gemini scan failed', { message: (response as any).error })
-      return []
+      const errorMessage =
+        (response as any).error ?? 'Unknown error from background service'
+      error('Gemini scan failed', { message: errorMessage })
+      throw new Error(`Gemini scan failed: ${errorMessage}`)
     }
 
     // The data is expected to be GeminiApiResult[] now.
@@ -27,6 +28,6 @@ export const requestGeminiPiiAnalysis = async (
     error('Gemini scan request threw', {
       message: err instanceof Error ? err.message : String(err),
     })
-    return []
+    throw err
   }
 }

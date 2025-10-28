@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { log, warn } from '../../shared/logger'
+import { storage, STORAGE_KEYS } from '../../shared/storage'
 import type { FormElement } from './FormFilter'
 import { detectionEngine, userRuleDetector } from '../detection'
 import {
@@ -7,20 +8,26 @@ import {
   type DetectionTrigger,
 } from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
-import { TargetHighlighter, type TargetHighlighterCallbacks } from './TargetHighlighter'
+import {
+  TargetHighlighter,
+  type TargetHighlighterCallbacks,
+} from './TargetHighlighter'
 import { maskValueWithMatches, maskContentEditableNodes } from '../masking'
 import { extractTextWithMapping, type TextNodeMapping } from '../../shared/dom'
 
 const isInputElement = (element: FormElement): element is HTMLInputElement =>
   element instanceof HTMLInputElement
 
-const isTextareaElement = (element: FormElement): element is HTMLTextAreaElement =>
-  element instanceof HTMLTextAreaElement
+const isTextareaElement = (
+  element: FormElement,
+): element is HTMLTextAreaElement => element instanceof HTMLTextAreaElement
 
 const isSelectElement = (element: FormElement): element is HTMLSelectElement =>
   element instanceof HTMLSelectElement
 
-const isContentEditableElement = (element: FormElement): element is HTMLElement =>
+const isContentEditableElement = (
+  element: FormElement,
+): element is HTMLElement =>
   element instanceof HTMLElement && element.isContentEditable
 
 const getElementValue = (element: FormElement): string => {
@@ -40,7 +47,11 @@ const getElementValue = (element: FormElement): string => {
 }
 
 const setElementValue = (element: FormElement, value: string) => {
-  if (isSelectElement(element) || isInputElement(element) || isTextareaElement(element)) {
+  if (
+    isSelectElement(element) ||
+    isInputElement(element) ||
+    isTextareaElement(element)
+  ) {
     if (element.value !== value) {
       element.value = value
     }
@@ -55,7 +66,8 @@ const setElementValue = (element: FormElement, value: string) => {
 }
 
 const deriveLabel = (element: FormElement, fallback: string): string => {
-  const explicit = element.getAttribute('aria-label') ?? element.getAttribute('placeholder')
+  const explicit =
+    element.getAttribute('aria-label') ?? element.getAttribute('placeholder')
   if (explicit) {
     return explicit
   }
@@ -86,11 +98,20 @@ type MirrorFieldProps = {
 }
 
 const listSelectOptions = (element: HTMLSelectElement) =>
-  Array.from(element.options).map((option) => ({ value: option.value, label: option.label }))
+  Array.from(element.options).map((option) => ({
+    value: option.value,
+    label: option.label,
+  }))
 
-const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) => {
+const MirrorField: React.FC<MirrorFieldProps> = ({
+  target,
+  index,
+  filterId,
+}) => {
   const [value, setValue] = useState(() => getElementValue(target))
-  const [options, setOptions] = useState(() => (isSelectElement(target) ? listSelectOptions(target) : []))
+  const [options, setOptions] = useState(() =>
+    isSelectElement(target) ? listSelectOptions(target) : [],
+  )
   const [matches, setMatches] = useState<DetectionMatch[]>([])
   const [closeSignal, setCloseSignal] = useState(0)
   const [plainText, setPlainText] = useState<string | null>(null)
@@ -98,6 +119,33 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
   const [ignoredValues, setIgnoredValues] = useState<string[]>([])
   const [userRules, setUserRules] = useState<string[]>([])
+  const [isHighlightingActive, setIsHighlightingActive] = useState(false)
+
+  useEffect(() => {
+    storage.get<boolean>(STORAGE_KEYS.DEFAULT_HIGHLIGHT_ON).then((value) => {
+      if (isMountedRef.current) {
+        setIsHighlightingActive(value ?? false)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    const handleStorageChange = (changes: {
+      [key: string]: chrome.storage.StorageChange
+    }) => {
+      if (changes[STORAGE_KEYS.DEFAULT_HIGHLIGHT_ON]) {
+        const newValue = changes[STORAGE_KEYS.DEFAULT_HIGHLIGHT_ON]
+          .newValue as boolean
+        setIsHighlightingActive(newValue)
+      }
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
+  }, [])
 
   const highlighterRef = useRef<TargetHighlighter | null>(null)
   const detectionContext = useMemo<DetectionContext>(
@@ -131,7 +179,10 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [])
 
   const runDetection = useCallback(
-    async (nextValue: string, options: { trigger?: DetectionTrigger } = {}) => {
+    async (
+      nextValue: string,
+      options: { trigger?: DetectionTrigger } = {},
+    ): Promise<DetectionMatch[] | undefined> => {
       const trigger = options.trigger ?? 'auto'
       const sequence = ++detectionSequenceRef.current
 
@@ -142,8 +193,15 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           trigger,
         })
 
-        if (!isMountedRef.current || detectionSequenceRef.current !== sequence) {
+        if (
+          !isMountedRef.current ||
+          detectionSequenceRef.current !== sequence
+        ) {
           return
+        }
+
+        if (trigger === 'manual') {
+          setIsHighlightingActive(true)
         }
 
         setMatches(results)
@@ -154,40 +212,53 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         setUserRules(currentRules)
 
         setTimeout(() => {
-          highlighterRef.current?.update(nextValue, results, mappings, currentIgnored, currentRules, { trigger })
-        }, 200);
+          highlighterRef.current?.update(
+            nextValue,
+            results,
+            mappings,
+            currentIgnored,
+            currentRules,
+            {
+              trigger,
+              isHighlightingActive,
+              setIsHighlightingActive,
+            },
+          )
+        }, 200)
+        return results
       } catch (err) {
         warn('Detection run failed', {
           filterId,
           index,
           message: err instanceof Error ? err.message : String(err),
         })
+        throw err
       }
     },
-    [detectionContext, filterId, index, mappings],
+    [detectionContext, filterId, index, mappings, isHighlightingActive],
   )
 
   const applyMask = useCallback(
     (targetMatches: DetectionMatch[]) => {
       if (targetMatches.length === 0) {
-        return;
+        return
       }
 
-      let changed = false;
+      let changed = false
 
       if (isContentEditableElement(target)) {
         if (!mappings) {
-          warn('Attempted to mask contenteditable with no mappings available.');
-          setCloseSignal((token) => token + 1);
-          return;
+          warn('Attempted to mask contenteditable with no mappings available.')
+          setCloseSignal((token) => token + 1)
+          return
         }
-        const result = maskContentEditableNodes(targetMatches, mappings);
-        changed = result.changed;
+        const result = maskContentEditableNodes(targetMatches, mappings)
+        changed = result.changed
       } else {
-        const result = maskValueWithMatches(value, targetMatches);
-        changed = result.changed;
+        const result = maskValueWithMatches(value, targetMatches)
+        changed = result.changed
         if (changed) {
-          setElementValue(target, result.masked);
+          setElementValue(target, result.masked)
         }
       }
 
@@ -195,9 +266,9 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
         warn('Mask request produced no change', {
           filterId,
           index,
-        });
-        setCloseSignal((token) => token + 1);
-        return;
+        })
+        setCloseSignal((token) => token + 1)
+        return
       }
 
       log('Mask applied', {
@@ -208,18 +279,19 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
           start: match.startIndex,
           end: match.endIndex,
         })),
-      });
+      })
 
       if (isContentEditableElement(target)) {
-        const { plainText: nextPlainText, mappings: nextMappings } = extractTextWithMapping(target as HTMLElement);
-        setPlainText(nextPlainText);
-        setMappings(nextMappings);
-        setValue(nextPlainText);
+        const { plainText: nextPlainText, mappings: nextMappings } =
+          extractTextWithMapping(target as HTMLElement)
+        setPlainText(nextPlainText)
+        setMappings(nextMappings)
+        setValue(nextPlainText)
       } else {
-        setValue(getElementValue(target));
+        setValue(getElementValue(target))
       }
-      
-      setCloseSignal((token) => token + 1);
+
+      setCloseSignal((token) => token + 1)
     },
     [filterId, index, target, mappings, value],
   )
@@ -228,53 +300,85 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
   callbacksRef.current = {
     onMaskSegment: useCallback(
-      ({ matches: selectedMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
+      ({
+        matches: selectedMatches,
+      }: {
+        matches: DetectionMatch[]
+        context: DetectionContext
+      }) => {
         applyMask(selectedMatches)
       },
       [applyMask],
     ),
     onMaskAll: useCallback(
-      ({ matches: allMatches }: { matches: DetectionMatch[]; context: DetectionContext }) => {
+      ({
+        matches: allMatches,
+      }: {
+        matches: DetectionMatch[]
+        context: DetectionContext
+      }) => {
         applyMask(allMatches)
       },
       [applyMask],
     ),
-    onIgnoreValue: useCallback((valueToIgnore: string) => {
-      detectionEngine.ignoreMatch(valueToIgnore);
-      const textToScan = isContentEditableElement(target) ? plainText : value;
-      if (textToScan === null) return;
-      void runDetection(textToScan, { trigger: 'auto' })
-    }, [runDetection, plainText, value, target]),
-    onUnignore: useCallback((valueToUnignore: string) => {
-      detectionEngine.unignoreMatch(valueToUnignore);
-      const textToScan = isContentEditableElement(target) ? plainText : value;
-      if (textToScan === null) return;
-      void runDetection(textToScan, { trigger: 'auto' })
-    }, [runDetection, plainText, value, target]),
-    onAddRule: useCallback((ruleToAdd: string) => {
-      detectionEngine.addUserRule(ruleToAdd);
-      const textToScan = isContentEditableElement(target) ? plainText : value;
-      if (textToScan === null) return;
-      void runDetection(textToScan, { trigger: 'auto' })
-    }, [runDetection, plainText, value, target]),
-    onRemoveRule: useCallback((ruleToRemove: string) => {
-      detectionEngine.removeUserRule(ruleToRemove);
-      const textToScan = isContentEditableElement(target) ? plainText : value;
-      if (textToScan === null) return;
-      void runDetection(textToScan, { trigger: 'auto' })
-    }, [runDetection, plainText, value, target]),
+    onIgnoreValue: useCallback(
+      (valueToIgnore: string) => {
+        detectionEngine.ignoreMatch(valueToIgnore)
+        const textToScan = isContentEditableElement(target) ? plainText : value
+        if (textToScan === null) return
+        void runDetection(textToScan, { trigger: 'auto' })
+      },
+      [runDetection, plainText, value, target],
+    ),
+    onUnignore: useCallback(
+      (valueToUnignore: string) => {
+        detectionEngine.unignoreMatch(valueToUnignore)
+        const textToScan = isContentEditableElement(target) ? plainText : value
+        if (textToScan === null) return
+        void runDetection(textToScan, { trigger: 'auto' })
+      },
+      [runDetection, plainText, value, target],
+    ),
+    onAddRule: useCallback(
+      (ruleToAdd: string) => {
+        detectionEngine.addUserRule(ruleToAdd)
+        const textToScan = isContentEditableElement(target) ? plainText : value
+        if (textToScan === null) return
+        void runDetection(textToScan, { trigger: 'auto' })
+      },
+      [runDetection, plainText, value, target],
+    ),
+    onRemoveRule: useCallback(
+      (ruleToRemove: string) => {
+        detectionEngine.removeUserRule(ruleToRemove)
+        const textToScan = isContentEditableElement(target) ? plainText : value
+        if (textToScan === null) return
+        void runDetection(textToScan, { trigger: 'auto' })
+      },
+      [runDetection, plainText, value, target],
+    ),
     onRequestScan: useCallback(() => {
-      const textToScan = isContentEditableElement(target) ? plainText : value;
-      if (textToScan === null) return;
-      void runDetection(textToScan, { trigger: 'manual' })
+      const textToScan = isContentEditableElement(target) ? plainText : value
+      if (textToScan === null) return Promise.resolve(undefined)
+      return runDetection(textToScan, { trigger: 'manual' })
     }, [runDetection, plainText, value, target]),
     onContentScroll: useCallback(() => {
-      highlighterRef.current?.update(valueRef.current, matchesRef.current, mappingsRef.current, ignoredValues, userRules)
+      highlighterRef.current?.update(
+        valueRef.current,
+        matchesRef.current,
+        mappingsRef.current,
+        ignoredValues,
+        userRules,
+      )
     }, [ignoredValues, userRules]),
   }
 
   useEffect(() => {
-    if (!isInputElement(target) && !isTextareaElement(target) && !isContentEditableElement(target)) {
+    if (
+      !isInputElement(target) &&
+      !isTextareaElement(target) &&
+      !isContentEditableElement(target)
+    ) {
       return
     }
 
@@ -285,8 +389,11 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       onUnignore: (...args) => callbacksRef.current.onUnignore?.(...args),
       onAddRule: (...args) => callbacksRef.current.onAddRule?.(...args),
       onRemoveRule: (...args) => callbacksRef.current.onRemoveRule?.(...args),
-      onRequestScan: (...args) => callbacksRef.current.onRequestScan?.(...args),
-      onContentScroll: (...args) => callbacksRef.current.onContentScroll?.(...args),
+      onRequestScan: (...args) =>
+        callbacksRef.current.onRequestScan?.(...args) ??
+        Promise.resolve(undefined),
+      onContentScroll: (...args) =>
+        callbacksRef.current.onContentScroll?.(...args),
     })
     highlighterRef.current = highlighter
 
@@ -297,29 +404,34 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [target, detectionContext])
 
   useEffect(() => {
-    const textToScan = isContentEditableElement(target) ? plainText : value;
+    const textToScan = isContentEditableElement(target) ? plainText : value
 
     if (textToScan === null) {
       return
     }
-    
-    void runDetection(textToScan, { trigger: 'auto' });
-  }, [runDetection, value, plainText, target]);
+
+    void runDetection(textToScan, { trigger: 'auto' })
+  }, [runDetection, value, plainText, target])
 
   useEffect(() => {
-    if (!isInputElement(target) && !isTextareaElement(target) && !isSelectElement(target)) {
+    if (
+      !isInputElement(target) &&
+      !isTextareaElement(target) &&
+      !isSelectElement(target)
+    ) {
       return
     }
 
     const handleInput = () => {
       const nextValue = getElementValue(target)
       if (isContentEditableElement(target)) {
-        const { plainText: nextPlainText, mappings: nextMappings } = extractTextWithMapping(target as HTMLElement);
-        setPlainText(nextPlainText);
-        setMappings(nextMappings);
-        setValue(nextPlainText);
+        const { plainText: nextPlainText, mappings: nextMappings } =
+          extractTextWithMapping(target as HTMLElement)
+        setPlainText(nextPlainText)
+        setMappings(nextMappings)
+        setValue(nextPlainText)
       } else {
-        setValue(nextValue);
+        setValue(nextValue)
       }
     }
 
@@ -338,30 +450,31 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     }
 
     const handleMutation = () => {
-      const { plainText: nextPlainText, mappings: nextMappings } = extractTextWithMapping(target as HTMLElement);
-      
+      const { plainText: nextPlainText, mappings: nextMappings } =
+        extractTextWithMapping(target as HTMLElement)
+
       log('MirrorField contenteditable mutation', {
         filterId,
         index,
         value: nextPlainText,
-      });
+      })
 
-      setPlainText(nextPlainText);
-      setMappings(nextMappings);
-      setValue(nextPlainText);
-    };
+      setPlainText(nextPlainText)
+      setMappings(nextMappings)
+      setValue(nextPlainText)
+    }
 
-    handleMutation();
+    handleMutation()
 
-    const observer = new MutationObserver(handleMutation);
+    const observer = new MutationObserver(handleMutation)
 
     observer.observe(target, {
       characterData: true,
       childList: true,
       subtree: true,
-    });
+    })
 
-    return () => observer.disconnect();
+    return () => observer.disconnect()
   }, [target, filterId, index])
 
   useEffect(() => {
@@ -380,17 +493,45 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
   }, [target])
 
   useEffect(() => {
-    if (highlighterRef.current && highlighterRef.current instanceof TargetHighlighter) {
+    if (
+      highlighterRef.current &&
+      highlighterRef.current instanceof TargetHighlighter
+    ) {
       highlighterRef.current.setCloseSignal(closeSignal)
     }
   }, [closeSignal])
 
-  const label = useMemo(() => deriveLabel(target, `Field #${index + 1}`), [target, index])
-  const location = useMemo(() => target.getAttribute('name') || target.getAttribute('id') || 'Unnamed field', [target])
+  useEffect(() => {
+    // This effect ensures that when the highlight toggle changes the state,
+    // the highlighter component is re-rendered with the new visibility.
+    highlighterRef.current?.update(
+      valueRef.current,
+      matchesRef.current,
+      mappingsRef.current,
+      ignoredValues,
+      userRules,
+      {
+        isHighlightingActive,
+        setIsHighlightingActive,
+      },
+    )
+  }, [isHighlightingActive, setIsHighlightingActive])
 
-  const handleChange: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> = (
-    event,
-  ) => {
+  const label = useMemo(
+    () => deriveLabel(target, `Field #${index + 1}`),
+    [target, index],
+  )
+  const location = useMemo(
+    () =>
+      target.getAttribute('name') ||
+      target.getAttribute('id') ||
+      'Unnamed field',
+    [target],
+  )
+
+  const handleChange: React.ChangeEventHandler<
+    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+  > = (event) => {
     const newValue = event.target.value
     setValue(newValue)
     setElementValue(target, newValue)
@@ -421,7 +562,11 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
 
     if (isSelectElement(target)) {
       return (
-        <select value={value} onChange={handleChange} style={{ width: '100%', padding: '8px' }}>
+        <select
+          value={value}
+          onChange={handleChange}
+          style={{ width: '100%', padding: '8px' }}
+        >
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -453,7 +598,8 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
       style={{
         all: 'initial',
         display: 'block',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         color: '#0f172a',
         background: '#f8fafc',
         borderRadius: '12px',
@@ -464,7 +610,9 @@ const MirrorField: React.FC<MirrorFieldProps> = ({ target, index, filterId }) =>
     >
       <header style={{ marginBottom: '12px' }}>
         <div style={{ fontSize: '14px', fontWeight: 600 }}>{label}</div>
-        <div style={{ fontSize: '11px', color: '#4f46e5' }}>Filter: {filterId}</div>
+        <div style={{ fontSize: '11px', color: '#4f46e5' }}>
+          Filter: {filterId}
+        </div>
         <div style={{ fontSize: '11px', color: '#64748b' }}>{location}</div>
       </header>
       {mirrorControl()}

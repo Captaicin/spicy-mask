@@ -14,9 +14,11 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === CONTEXT_MENU_ID && tab?.id) {
-    chrome.tabs.sendMessage(tab.id, { type: 'MASK_SELECTION' }).catch(err =>
-      console.error('Failed to send MASK_SELECTION message:', err),
-    )
+    chrome.tabs
+      .sendMessage(tab.id, { type: 'MASK_SELECTION' })
+      .catch((err) =>
+        console.error('Failed to send MASK_SELECTION message:', err),
+      )
   }
 })
 

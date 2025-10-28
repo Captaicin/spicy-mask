@@ -12,6 +12,13 @@ interface ManagementPanelProps {
   onRemoveRule: (rule: string) => void
   onClose: () => void
   onMaskAll: () => void
+  onStartScan: () => void
+  scanPending: boolean
+  scanSummary: Record<string, number> | null
+  scanError: string | null
+  showMaskAllButton: boolean
+  isHighlightingActive?: boolean
+  setIsHighlightingActive?: (value: boolean) => void
 }
 
 const MIN_WIDTH = 300
@@ -20,6 +27,50 @@ const MAX_HEIGHT = 450
 
 const BASE_HPAD = 0
 const EXTRA_RIGHT_PAD = 8
+
+const loadingOverlayStyles: React.CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: 'rgba(0, 0, 0, 0.5)',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 10,
+  borderRadius: tokens.radii.md,
+}
+
+const loadingImageStyles: React.CSSProperties = {
+  width: '80px',
+  height: '80px',
+}
+
+const resultsCardStyles: React.CSSProperties = {
+  background: tokens.colors.backgroundPrimary,
+  padding: tokens.spacing.s4,
+  borderRadius: tokens.radii.lg,
+  boxShadow: tokens.shadows.lg,
+  width: '80%',
+  textAlign: 'center',
+  border: `1px solid ${tokens.colors.border}`,
+}
+
+const resultsTitleStyles: React.CSSProperties = {
+  fontSize: tokens.typography.fontSizeLg,
+  fontWeight: tokens.typography.fontWeightBold,
+  color: tokens.colors.textPrimary,
+  marginBottom: tokens.spacing.s3,
+}
+
+const resultsListStyles: React.CSSProperties = {
+  listStyle: 'none',
+  padding: 0,
+  margin: `0 0 ${tokens.spacing.s4} 0`,
+  color: tokens.colors.textSecondary,
+}
 
 const panelStyles: React.CSSProperties = {
   width: 'fit-content',
@@ -34,11 +85,12 @@ const panelStyles: React.CSSProperties = {
   fontFamily: tokens.typography.fontFamilyBase,
   fontSize: tokens.typography.fontSizeXs,
   display: 'grid',
-  gridTemplateRows: 'auto 1fr',
+  gridTemplateRows: 'auto 1fr auto',
   padding: `${tokens.spacing.s2} 0`,
   boxSizing: 'border-box',
   overflow: 'hidden',
   contain: 'layout style',
+  position: 'relative',
 }
 
 const headerStyles: React.CSSProperties = {
@@ -49,6 +101,22 @@ const headerStyles: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+}
+
+const footerStyles: React.CSSProperties = {
+  padding: `${tokens.spacing.s2} ${tokens.spacing.s2} ${tokens.spacing.s1}`,
+  borderTop: `1px solid ${tokens.colors.border}`,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+}
+
+const scanButtonContainerStyles: React.CSSProperties = {
+  position: 'sticky',
+  bottom: '0',
+  display: 'flex',
+  justifyContent: 'center',
+  width: '100%',
 }
 
 const contentContainerBaseStyles: React.CSSProperties = {
@@ -169,11 +237,45 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
   onRemoveRule,
   onClose,
   onMaskAll,
+  onStartScan,
+  scanPending,
+  scanSummary,
+  scanError,
+  isHighlightingActive,
+  setIsHighlightingActive,
 }) => {
+  const [showResultsCard, setShowResultsCard] = React.useState(false)
+  const loadingGifUrl = React.useMemo(() => {
+    try {
+      return chrome.runtime.getURL('assets/loading.gif')
+    } catch (e) {
+      return ''
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (!scanPending && (scanSummary || scanError)) {
+      setShowResultsCard(true)
+    }
+  }, [scanPending, scanSummary, scanError])
+
+  const handleStartScanClick = () => {
+    setShowResultsCard(false)
+    onStartScan()
+  }
+
   const detectedPiiValues = React.useMemo(() => {
     const uniqueValues = new Set(visibleMatches.map((m) => m.match))
     return Array.from(uniqueValues)
   }, [visibleMatches])
+
+  const shouldAnimate = React.useMemo(() => {
+    const hasRegexResults = visibleMatches.some(
+      (match) => match.detectorId !== 'gemini',
+    )
+    const hasGeminiResults = scanSummary && Object.keys(scanSummary).length > 0
+    return hasRegexResults && !hasGeminiResults
+  }, [visibleMatches, scanSummary])
 
   const [newRule, setNewRule] = React.useState('')
   const contentRef = React.useRef<HTMLDivElement>(null)
@@ -220,90 +322,307 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
     scrollbarGutter: `${needsScroll ? 'stable' : 'auto'}`,
   }
 
-  return (
-    <div style={panelStyles}>
-      <div style={headerStyles}>
-        <span>Management Panel</span>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: tokens.spacing.s2,
-          }}
-        >
-          <button
-            style={{
-              ...buttonStyles,
-              background: tokens.colors.accentOrange,
-              color: tokens.colors.backgroundPrimary,
-              fontWeight: tokens.typography.fontWeightBold,
-            }}
-            onClick={onMaskAll}
-          >
-            Mask all
-          </button>
-          <button style={closeButtonStyles} onClick={onClose}>
-            ×
-          </button>
-        </div>
-      </div>
+  const animatedGradientButtonStyle: React.CSSProperties = {
+    ...buttonStyles,
+    padding: '6px 10px',
+    border: 'none',
+    borderRadius: tokens.radii.md,
+    cursor: 'pointer',
+    color: 'white',
+    fontSize: tokens.typography.fontSizeXs,
+    fontWeight: tokens.typography.fontWeightBold,
+    background: `linear-gradient(
+      135deg,
+      #2196F3,
+      #FF1744,
+      #FFC107,
+      #2196F3
+    )`,
+    backgroundSize: '400% 400%',
+    animation: 'gradient-move 10s ease infinite',
+  }
 
-      <div ref={contentRef} style={contentContainerStyles}>
-        <ListSection
-          title="Detected PII"
-          items={detectedPiiValues}
-          onAction={onIgnoreValue}
-          actionLabel="Ignore"
-        />
-        <ListSection
-          title="Ignored Values"
-          items={ignoredValues}
-          onAction={onUnignore}
-          actionLabel="Restore"
-        />
-        <ListSection
-          title="User-Defined Rules"
-          items={userRules}
-          onAction={onRemoveRule}
-          actionLabel="Remove"
-        >
+  const scanButtonStyle = shouldAnimate
+    ? { ...animatedGradientButtonStyle, width: '80%' }
+    : { ...buttonStyles, width: '80%' }
+
+  const checkResultsButtonStyle: React.CSSProperties = {
+    ...buttonStyles,
+    background: tokens.colors.accentGreen,
+    color: tokens.colors.backgroundPrimary,
+    fontWeight: tokens.typography.fontWeightBold,
+    padding: '10px 20px',
+    width: '100%',
+    fontSize: tokens.typography.fontSizeSm,
+  }
+
+  return (
+    <>
+      <style>
+        {`
+          @keyframes gradient-move {
+            0% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
+          }
+
+          .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+          }
+
+          .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+          }
+
+          .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+          }
+
+          .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+          }
+
+          input:checked + .slider {
+            background-color: ${tokens.colors.accentGreen};
+          }
+
+          input:focus + .slider {
+            box-shadow: 0 0 1px ${tokens.colors.accentGreen};
+          }
+
+          input:checked + .slider:before {
+            transform: translateX(14px);
+          }
+        `}
+      </style>
+      <div style={panelStyles}>
+        {(scanPending || showResultsCard) && (
+          <div style={loadingOverlayStyles}>
+            {scanPending ? (
+              <img
+                src={loadingGifUrl}
+                style={loadingImageStyles}
+                alt="Loading..."
+              />
+            ) : (
+              <div style={resultsCardStyles}>
+                <h2 style={resultsTitleStyles}>Scan Results</h2>
+                {scanError ? (
+                  <p
+                    style={{
+                      color: tokens.colors.accentRed,
+                      marginBottom: tokens.spacing.s4,
+                    }}
+                  >
+                    {scanError}
+                  </p>
+                ) : scanSummary && Object.keys(scanSummary).length > 0 ? (
+                  <ul style={resultsListStyles}>
+                    {Object.entries(scanSummary).map(([type, count]) => (
+                      <li key={type}>
+                        {type}: {count}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ marginBottom: tokens.spacing.s4 }}>
+                    No PII found.
+                  </p>
+                )}
+                <button
+                  style={checkResultsButtonStyle}
+                  onClick={() => setShowResultsCard(false)}
+                >
+                  {scanError ? 'Close' : 'Check Results'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <div style={headerStyles}>
+          <span>🌶️ Spicy Mask</span>
           <div
             style={{
-              padding: `0 ${tokens.spacing.s2} ${tokens.spacing.s2}`,
               display: 'flex',
+              alignItems: 'center',
               gap: tokens.spacing.s2,
             }}
           >
-            <input
-              type="text"
-              placeholder="Add new rule..."
-              value={newRule}
-              onChange={(e) => setNewRule(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '100%',
-                background: tokens.colors.backgroundPrimary,
-                border: `1px solid ${tokens.colors.border}`,
-                borderRadius: tokens.radii.sm,
-                color: tokens.colors.textPrimary,
-                padding: `${tokens.spacing.s1} ${tokens.spacing.s2}`,
-                fontSize: '11px',
-              }}
-            />
             <button
               style={{
                 ...buttonStyles,
-                background: tokens.colors.accentGreen,
+                background: tokens.colors.accentOrange,
                 color: tokens.colors.backgroundPrimary,
                 fontWeight: tokens.typography.fontWeightBold,
               }}
-              onClick={handleAddRule}
+              onClick={onMaskAll}
             >
-              Add
+              Mask all
+            </button>
+            <button style={closeButtonStyles} onClick={onClose}>
+              ×
             </button>
           </div>
-        </ListSection>
+        </div>
+
+        <div
+          style={{
+            ...headerStyles,
+            borderBottom: 'none',
+            paddingTop: tokens.spacing.s2,
+            paddingBottom: tokens.spacing.s2,
+          }}
+        >
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              cursor: 'pointer',
+            }}
+          >
+            <span
+              style={{
+                fontWeight: tokens.typography.fontWeightMedium,
+                fontSize: tokens.typography.fontSizeXs,
+              }}
+            >
+              Show Highlights
+            </span>
+            <div className="switch">
+              <input
+                type="checkbox"
+                checked={isHighlightingActive}
+                onChange={(e) => setIsHighlightingActive?.(e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="slider"></span>
+            </div>
+          </label>
+        </div>
+
+        {/* <div style={{ padding: `0 ${tokens.spacing.s2}` }}>
+        {scanPending && !scanSummary ? (
+          <span>Scanning…</span>
+        ) : scanSummary ? (
+          <>
+            <span
+              style={{
+                fontWeight: tokens.typography.fontWeightBold,
+                color: tokens.colors.textPrimary,
+              }}
+            >
+              Results
+            </span>
+            {Object.entries(scanSummary).length > 0 ? (
+              Object.entries(scanSummary).map(([type, count]) => (
+                <span key={type} style={{ marginLeft: tokens.spacing.s2 }}>
+                  • {type}: {count}
+                </span>
+              ))
+            ) : (
+              <span>No PII found.</span>
+            )}
+          </>
+        ) : null}
+      </div> */}
+
+        <div ref={contentRef} style={contentContainerStyles}>
+          <ListSection
+            title="Detected PII"
+            items={detectedPiiValues}
+            onAction={onIgnoreValue}
+            actionLabel="Ignore"
+          />
+          <ListSection
+            title="Ignored Values"
+            items={ignoredValues}
+            onAction={onUnignore}
+            actionLabel="Restore"
+          />
+          <ListSection
+            title="User-Defined Rules"
+            items={userRules}
+            onAction={onRemoveRule}
+            actionLabel="Remove"
+          >
+            <div
+              style={{
+                padding: `0 ${tokens.spacing.s2} ${tokens.spacing.s2}`,
+                display: 'flex',
+                gap: tokens.spacing.s2,
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Add new rule..."
+                value={newRule}
+                onChange={(e) => setNewRule(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  background: tokens.colors.backgroundPrimary,
+                  border: `1px solid ${tokens.colors.border}`,
+                  borderRadius: tokens.radii.sm,
+                  color: tokens.colors.textPrimary,
+                  padding: `${tokens.spacing.s1} ${tokens.spacing.s2}`,
+                  fontSize: '11px',
+                }}
+              />
+              <button
+                style={{
+                  ...buttonStyles,
+                  background: tokens.colors.accentGreen,
+                  color: tokens.colors.backgroundPrimary,
+                  fontWeight: tokens.typography.fontWeightBold,
+                }}
+                onClick={handleAddRule}
+              >
+                Add
+              </button>
+            </div>
+          </ListSection>
+        </div>
+        <div style={footerStyles}>
+          <div style={scanButtonContainerStyles}>
+            <button
+              style={scanButtonStyle}
+              onClick={handleStartScanClick}
+              disabled={scanPending}
+            >
+              {scanPending ? 'Scanning PIIs...' : 'Scan with Gemini'}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

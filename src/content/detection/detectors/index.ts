@@ -4,4 +4,8 @@ import { UserRuleDetector } from './UserRuleDetector'
 
 export const userRuleDetector = new UserRuleDetector()
 
-export const defaultDetectors = [new RegexDetector(), new GeminiDetector(), userRuleDetector]
+export const defaultDetectors = [
+  new RegexDetector(),
+  new GeminiDetector(),
+  userRuleDetector,
+]

@@ -1,6 +1,5 @@
-
 import { GeminiApiResult } from '../shared/types'
-
+import { log, error } from '../shared/logger'
 
 const PII_ANALYSIS_SCHEMA = {
   type: 'object',
@@ -29,7 +28,7 @@ let model: LanguageModel | null = null
 
 async function getModel(): Promise<LanguageModel> {
   if (!model) {
-    console.log('[Spicy Mask] AI 모델을 생성합니다.')
+    log('Create Model ...')
     model = await LanguageModel.create()
   }
   return model
@@ -41,25 +40,20 @@ async function executeLLMPrompt(
 ): Promise<any | null> {
   try {
     const activeModel = await getModel()
-    console.log('🤖 [Gemini Request] Prompt:', prompt)
+    log('Gemini Request Prompt:', prompt)
     const resultStr = await activeModel.prompt(prompt, {
       responseConstraint: schema,
     })
-    console.log('🤖 [Gemini Response] Raw Result:', resultStr)
+    log('Gemini Response:', resultStr)
     return JSON.parse(resultStr)
-  } catch (error) {
-    console.error('Gemini Execution or Parsing Error:', error)
-    return null
+  } catch (e) {
+    error('Gemini Execution or Parsing Error:', e)
+    throw e
   }
 }
 
-export async function runPiiAnalysis(
-  text: string,
-): Promise<GeminiApiResult[]> {
-
-  const preprocessedText = text
-    .trim()
-    .replace(/(\r\n|\n){3,}/g, '\n\n')
+export async function runPiiAnalysis(text: string): Promise<GeminiApiResult[]> {
+  const preprocessedText = text.trim().replace(/(\r\n|\n){3,}/g, '\n\n')
 
   const prompt = `Role: You are a privacy expert. Your task is to identify PII that is **difficult to detect with simple patterns such as regex**.
 
