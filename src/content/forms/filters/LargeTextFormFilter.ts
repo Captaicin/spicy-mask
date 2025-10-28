@@ -11,7 +11,8 @@ export class LargeTextFormFilter extends FormFilter {
     super({
       id: 'large-text',
       label: 'Large text areas',
-      description: 'Match large text inputs like comment fields or post bodies, excluding smaller fields like search or login.'
+      description:
+        'Match large text inputs like comment fields or post bodies, excluding smaller fields like search or login.',
     })
     this.includeHidden = options.includeHidden ?? false
   }
@@ -35,7 +36,11 @@ export class LargeTextFormFilter extends FormFilter {
     }
 
     if (element instanceof HTMLTextAreaElement) {
-      if (element.disabled || element.readOnly || this.isDisabledByAria(element)) {
+      if (
+        element.disabled ||
+        element.readOnly ||
+        this.isDisabledByAria(element)
+      ) {
         return false
       }
       // Include all valid textareas regardless of size.
@@ -67,7 +72,7 @@ export class LargeTextFormFilter extends FormFilter {
       }
 
       // 3. It has an associated <label> element.
-      const labels = (element as HTMLInputElement).labels;
+      const labels = (element as HTMLInputElement).labels
       if (labels && labels.length > 0) {
         return true
       }

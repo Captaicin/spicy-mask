@@ -18,28 +18,28 @@
 
 ## 상위 파일
 
-| 경로              | 설명                                                                           |
-| ----------------- | ------------------------------------------------------------------------------ |
-| `index.ts`        | 콘텐츠 스크립트 엔트리. `FormOverlayController` 및 `contextMenuHandler`와 같은 핵심 모듈을 초기화하고 언로드 클린업을 담당합니다. |
-| `filterConfig.ts` | 사용할 `FormFilter`를 선택하는 설정 파일입니다. 기본값으로 `LargeTextFormFilter`가 설정되어 있으며, 이 파일을 수정하여 `AllFormFilter`나 `TextFormFilter` 등으로 쉽게 교체할 수 있습니다. |
-| `contextMenuHandler.ts` | 사용자가 선택한 텍스트를 마스킹하는 컨텍스트 메뉴 관련 로직을 처리합니다. 백그라운드 스크립트로부터 `MASK_SELECTION` 메시지를 수신하여 `handleMaskSelection` 함수를 실행합니다. |
-| `selection.ts` | 사용자의 선택(selection)을 처리하는 유틸리티 함수를 제공합니다. `contenteditable` 요소 내에서 선택된 텍스트의 상대적 위치(`offset`)를 계산하는 등의 역할을 합니다. |
+| 경로                    | 설명                                                                                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`              | 콘텐츠 스크립트 엔트리. `FormOverlayController` 및 `contextMenuHandler`와 같은 핵심 모듈을 초기화하고 언로드 클린업을 담당합니다.                                                         |
+| `filterConfig.ts`       | 사용할 `FormFilter`를 선택하는 설정 파일입니다. 기본값으로 `LargeTextFormFilter`가 설정되어 있으며, 이 파일을 수정하여 `AllFormFilter`나 `TextFormFilter` 등으로 쉽게 교체할 수 있습니다. |
+| `contextMenuHandler.ts` | 사용자가 선택한 텍스트를 마스킹하는 컨텍스트 메뉴 관련 로직을 처리합니다. 백그라운드 스크립트로부터 `MASK_SELECTION` 메시지를 수신하여 `handleMaskSelection` 함수를 실행합니다.           |
+| `selection.ts`          | 사용자의 선택(selection)을 처리하는 유틸리티 함수를 제공합니다. `contenteditable` 요소 내에서 선택된 텍스트의 상대적 위치(`offset`)를 계산하는 등의 역할을 합니다.                        |
 
 ## `forms/` 서브시스템
 
 폼 스캐닝과 미러링 UI 전반을 담당합니다.
 
-| 경로                       | 설명                                                                                                                                                                        |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FormFilter.ts`            | 폼 필터 추상 클래스와 메타데이터 타입을 정의합니다. `matches` 메서드 구현으로 대상 여부를 판별합니다.                                                                       |
-| `FormOverlayController.ts` | DOM 스캔, 필터 적용, 미러링 동기화를 총괄합니다. MutationObserver로 DOM 변화를 감시합니다.                                                                                  |
-| `FormScanner.ts`           | DOM에서 입력 컨트롤을 수집하고 가시성/상태 검사를 수행합니다.                                                                                                               |
-| `FormMirrorManager.ts`     | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다.                                                                                                      |
-| `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. `DetectionEngine`으로부터 최종 탐지 결과를 받아 하이라이트 및 마스킹 동작을 orchestration합니다.              |
-| `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다. |
+| 경로                       | 설명                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FormFilter.ts`            | 폼 필터 추상 클래스와 메타데이터 타입을 정의합니다. `matches` 메서드 구현으로 대상 여부를 판별합니다.                                                                                                                                                                                                                                                                                                                                                                                             |
+| `FormOverlayController.ts` | DOM 스캔, 필터 적용, 미러링 동기화를 총괄합니다. MutationObserver로 DOM 변화를 감시합니다.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `FormScanner.ts`           | DOM에서 입력 컨트롤을 수집하고 가시성/상태 검사를 수행합니다.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `FormMirrorManager.ts`     | 대상 폼 요소별로 shadow overlay를 만들고 React 렌더 루트를 관리합니다.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `MirrorField.tsx`          | 단일 폼 요소를 미러링하는 React 컴포넌트. `DetectionEngine`으로부터 최종 탐지 결과를 받아 하이라이트 및 마스킹 동작을 orchestration합니다.                                                                                                                                                                                                                                                                                                                                                        |
+| `TargetHighlighter.ts`     | 대상 필드 위에 하이라이트 오버레이를 생성하고 동기화하는 핵심 클래스. `ResizeObserver`, `MutationObserver` 및 스크롤 가능한 부모 요소들을 추적하여 원본 필드의 크기, 위치, 스타일, 스크롤 상태 변화를 정교하게 감지하고, `requestAnimationFrame`을 통해 시각적 불일치 없이 오버레이를 업데이트합니다.                                                                                                                                                                                             |
 | `TextHighlightOverlay.tsx` | PII가 탐지되었을 때 알림 뱃지를 제공하는 React UI 레이어입니다. 감지된 텍스트를 시각화하고 마스킹 액션, 스캔 도구, PII 관리 패널을 제공합니다. 페이지 우측 하단에 나타나는 🌶️ 아이콘 버튼을 통해 관리 패널을 열 수 있으며, 이 버튼의 테두리 색상은 PII 상태를 나타냅니다: **초록색** (처리할 PII 없음), **빨간색** (초기 탐지 결과만 존재), **주황색** (Gemini 스캔 실행 후). 팝업 위치 계산은 `@floating-ui/react`를 사용하고, `React.createPortal`을 통해 다른 UI에 가려지지 않도록 처리합니다. |
-| `ManagementPanel.tsx`      | 현재 탐지된 PII, 무시된 값, 사용자 정의 규칙을 보고 관리(무시, 복원, 추가, 제거)하는 UI 컴포넌트입니다. 텍스트 필드의 PII 하이라이트를 켜고 끌 수 있는 토글 스위치를 포함합니다. Gemini 스캔 실행 시, 패널 전체에 오버레이가 씌워지며 로딩 상태(`loading.gif`)를 표시합니다. 스캔이 완료되면, 오버레이 위에 탐지 결과 요약 카드가 나타나며, 사용자가 'Check Results' 버튼을 클릭해야 오버레이가 해제되고 상세 내용을 확인할 수 있습니다. |
-| `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `LargeTextFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                |
+| `ManagementPanel.tsx`      | 현재 탐지된 PII, 무시된 값, 사용자 정의 규칙을 보고 관리(무시, 복원, 추가, 제거)하는 UI 컴포넌트입니다. 텍스트 필드의 PII 하이라이트를 켜고 끌 수 있는 토글 스위치를 포함합니다. Gemini 스캔 실행 시, 패널 전체에 오버레이가 씌워지며 로딩 상태(`loading.gif`)를 표시합니다. 스캔이 완료되면, 오버레이 위에 탐지 결과 요약 카드가 나타나며, 사용자가 'Check Results' 버튼을 클릭해야 오버레이가 해제되고 상세 내용을 확인할 수 있습니다.                                                          |
+| `filters/`                 | 빌트인 필터 구현 모음 (`AllFormFilter`, `LargeTextFormFilter`, `MockFormFilter`, `TextFormFilter`).                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ### 필터 구현
 
@@ -52,17 +52,17 @@
 
 민감 텍스트 감지를 모듈화합니다.
 
-| 경로 | 설명 |
-| --- | --- |
-| `DetectionEngine.ts` | 모든 탐지기를 실행하고 지능적으로 결과를 병합합니다. **중복된 탐지 결과를 해결할 때 더 구체적인(긴) 매치를 우선시하고, 길이가 같을 경우 탐지기 우선순위를 사용합니다.** 또한, 세션 동안 발견된 모든 고유 PII를 '사전' 형태로 기억하여 캐시로 활용하며, 사용자가 무시한 값의 목록을 관리합니다. |
-| `detectors/BaseDetector.ts` | 모든 감지기의 기본 클래스. `detect` 메서드와 공통 입력 타입(`DetectionInput`)을 정의합니다. |
-| `detectors/RegexDetector.ts` | 다중 정규식 패턴으로 PII 후보를 찾고, 추가 검증을 통해 정확도를 높이는 엔진입니다. 신용카드는 Luhn 알고리즘으로, **전화번호는 `libphonenumber-js` 라이브러리를 통해 검증**하여 오탐을 줄이고 글로벌 지원을 강화합니다. 내부에 캐시와 다양한 휴리스틱을 포함하여 성능과 정확성을 최적화합니다. |
-| `detectors/UserRuleDetector.ts` | 사용자가 직접 추가한 텍스트 패턴(규칙)과 일치하는 모든 문자열을 탐지합니다. |
-| `detectors/pii/piiPatterns.ts` | `RegexDetector`가 사용하는 PII 정규식 패턴과 우선순위를 정의합니다. **전화번호의 경우, 광범위한 후보를 찾아내기 위한 '순진한(naive)' 패턴을 사용하며, 핵심 검증 로직은 `RegexDetector`에 있습니다.** |
-| `detectors/GeminiDetector.ts` | 백그라운드 Gemini 서비스를 호출하여 텍스트 내의 문맥적 PII(이름, 주소 등)를 탐지합니다. 서비스로부터 PII 후보값을 받은 후, "findall" 로직을 통해 텍스트 내 모든 일치 항목의 위치를 찾아 최종 `DetectionMatch` 객체를 생성합니다. |
-| `detectors/geminiClient.ts` | `GeminiDetector`와 `background` 서비스 간의 통신을 담당하는 얇은 클라이언트입니다. `sendMessage` API 호출을 추상화하고, `RUN_GEMINI_PII_ANALYSIS` 메시지를 전송합니다. |
-| `detectors/index.ts` | `DetectionEngine`에 사용될 기본 감지기(`RegexDetector`, `GeminiDetector`, `UserRuleDetector`)를 구성하고 내보냅니다. |
-| `index.ts` | `DetectionEngine` 싱글턴 인스턴스를 생성하고 내보냅니다. |
+| 경로                            | 설명                                                                                                                                                                                                                                                                                           |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DetectionEngine.ts`            | 모든 탐지기를 실행하고 지능적으로 결과를 병합합니다. **중복된 탐지 결과를 해결할 때 더 구체적인(긴) 매치를 우선시하고, 길이가 같을 경우 탐지기 우선순위를 사용합니다.** 또한, 세션 동안 발견된 모든 고유 PII를 '사전' 형태로 기억하여 캐시로 활용하며, 사용자가 무시한 값의 목록을 관리합니다. |
+| `detectors/BaseDetector.ts`     | 모든 감지기의 기본 클래스. `detect` 메서드와 공통 입력 타입(`DetectionInput`)을 정의합니다.                                                                                                                                                                                                    |
+| `detectors/RegexDetector.ts`    | 다중 정규식 패턴으로 PII 후보를 찾고, 추가 검증을 통해 정확도를 높이는 엔진입니다. 신용카드는 Luhn 알고리즘으로, **전화번호는 `libphonenumber-js` 라이브러리를 통해 검증**하여 오탐을 줄이고 글로벌 지원을 강화합니다. 내부에 캐시와 다양한 휴리스틱을 포함하여 성능과 정확성을 최적화합니다.  |
+| `detectors/UserRuleDetector.ts` | 사용자가 직접 추가한 텍스트 패턴(규칙)과 일치하는 모든 문자열을 탐지합니다.                                                                                                                                                                                                                    |
+| `detectors/pii/piiPatterns.ts`  | `RegexDetector`가 사용하는 PII 정규식 패턴과 우선순위를 정의합니다. **전화번호의 경우, 광범위한 후보를 찾아내기 위한 '순진한(naive)' 패턴을 사용하며, 핵심 검증 로직은 `RegexDetector`에 있습니다.**                                                                                           |
+| `detectors/GeminiDetector.ts`   | 백그라운드 Gemini 서비스를 호출하여 텍스트 내의 문맥적 PII(이름, 주소 등)를 탐지합니다. 서비스로부터 PII 후보값을 받은 후, "findall" 로직을 통해 텍스트 내 모든 일치 항목의 위치를 찾아 최종 `DetectionMatch` 객체를 생성합니다.                                                               |
+| `detectors/geminiClient.ts`     | `GeminiDetector`와 `background` 서비스 간의 통신을 담당하는 얇은 클라이언트입니다. `sendMessage` API 호출을 추상화하고, `RUN_GEMINI_PII_ANALYSIS` 메시지를 전송합니다.                                                                                                                         |
+| `detectors/index.ts`            | `DetectionEngine`에 사용될 기본 감지기(`RegexDetector`, `GeminiDetector`, `UserRuleDetector`)를 구성하고 내보냅니다.                                                                                                                                                                           |
+| `index.ts`                      | `DetectionEngine` 싱글턴 인스턴스를 생성하고 내보냅니다.                                                                                                                                                                                                                                       |
 
 ## 마스킹(`masking/`)
 

@@ -1,16 +1,23 @@
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import TextHighlightOverlay from './TextHighlightOverlay'
-import type { DetectionContext, DetectionTrigger } from '../detection/detectors/BaseDetector'
+import type {
+  DetectionContext,
+  DetectionTrigger,
+} from '../detection/detectors/BaseDetector'
 import type { DetectionMatch } from '../../shared/types'
 import type { TextNodeMapping } from '../../shared/dom'
 
-const isScrollableElement = (element: HTMLElement): element is HTMLElement & { scrollTop: number; scrollLeft: number } => {
+const isScrollableElement = (
+  element: HTMLElement,
+): element is HTMLElement & { scrollTop: number; scrollLeft: number } => {
   if (!(element instanceof HTMLElement)) {
     return false
   }
   const style = getComputedStyle(element)
-  return /auto|scroll|overlay/i.test(style.overflow + style.overflowX + style.overflowY)
+  return /auto|scroll|overlay/i.test(
+    style.overflow + style.overflowX + style.overflowY,
+  )
 }
 
 const getScrollableAncestors = (element: HTMLElement): HTMLElement[] => {
@@ -26,9 +33,18 @@ const getScrollableAncestors = (element: HTMLElement): HTMLElement[] => {
 }
 
 export type TargetHighlighterCallbacks = {
-  onMaskSegment?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
-  onMaskAll?: (payload: { matches: DetectionMatch[]; context: DetectionContext }) => void
-  onFocusMatch?: (payload: { match: DetectionMatch; context: DetectionContext }) => void
+  onMaskSegment?: (payload: {
+    matches: DetectionMatch[]
+    context: DetectionContext
+  }) => void
+  onMaskAll?: (payload: {
+    matches: DetectionMatch[]
+    context: DetectionContext
+  }) => void
+  onFocusMatch?: (payload: {
+    match: DetectionMatch
+    context: DetectionContext
+  }) => void
   onIgnoreValue?: (value: string) => void
   onUnignore?: (value: string) => void
   onAddRule?: (rule: string) => void
@@ -65,7 +81,11 @@ export class TargetHighlighter {
   private lastPiiDetails: { pii: DetectionMatch; rects: DOMRect[] }[] = []
   private layoutCheckInterval: number | null = null
 
-  constructor(target: HTMLElement, context: DetectionContext, callbacks: TargetHighlighterCallbacks = {}) {
+  constructor(
+    target: HTMLElement,
+    context: DetectionContext,
+    callbacks: TargetHighlighterCallbacks = {},
+  ) {
     this.target = target
     this.context = context
     this.callbacks = callbacks
@@ -123,7 +143,8 @@ export class TargetHighlighter {
       this.currentIgnoredValues = ignoredValues
       this.currentUserRules = userRules
       this.hasValue = typeof value === 'string' && value.length > 0
-      this.isHighlightingActive = meta.isHighlightingActive ?? this.isHighlightingActive
+      this.isHighlightingActive =
+        meta.isHighlightingActive ?? this.isHighlightingActive
       this.setIsHighlightingActive = meta.setIsHighlightingActive ?? null
 
       const hasMatches = Array.isArray(matches) && matches.length > 0
@@ -137,7 +158,8 @@ export class TargetHighlighter {
       this.updateLayout()
 
       const isStandardInput =
-        this.target.tagName.toLowerCase() === 'input' || this.target.tagName.toLowerCase() === 'textarea'
+        this.target.tagName.toLowerCase() === 'input' ||
+        this.target.tagName.toLowerCase() === 'textarea'
 
       const piiDetails = []
 
@@ -266,10 +288,16 @@ export class TargetHighlighter {
     this.mutationObserver = new MutationObserver(() => {
       this.requestLayoutUpdate()
     })
-    this.mutationObserver.observe(this.target, { attributes: true, attributeFilter: ['style', 'class'] })
+    this.mutationObserver.observe(this.target, {
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    })
 
     this.layoutCheckInterval = window.setInterval(() => {
-      if (this.target.clientWidth !== this.clientWidth || this.target.clientHeight !== this.clientHeight) {
+      if (
+        this.target.clientWidth !== this.clientWidth ||
+        this.target.clientHeight !== this.clientHeight
+      ) {
         this.requestLayoutUpdate()
       }
     }, 100)
@@ -369,7 +397,7 @@ export class TargetHighlighter {
         hasValue: this.hasValue,
         isHighlightingActive: this.isHighlightingActive,
         setIsHighlightingActive: this.setIsHighlightingActive ?? undefined,
-      })
+      }),
     )
   }
 
@@ -393,43 +421,59 @@ export class TargetHighlighter {
     return this.target.shadowRoot.contains(document.activeElement)
   }
 
-  private _getRectsFromMappings(pii: DetectionMatch, mappings: TextNodeMapping[]): DOMRect[] {
-    const rects: DOMRect[] = [];
-    const matchStart = pii.startIndex;
-    const matchEnd = pii.endIndex;
+  private _getRectsFromMappings(
+    pii: DetectionMatch,
+    mappings: TextNodeMapping[],
+  ): DOMRect[] {
+    const rects: DOMRect[] = []
+    const matchStart = pii.startIndex
+    const matchEnd = pii.endIndex
 
     const affectedMappings = mappings.filter(
-      (mapping) => Math.max(matchStart, mapping.start) < Math.min(matchEnd, mapping.end)
-    );
+      (mapping) =>
+        Math.max(matchStart, mapping.start) < Math.min(matchEnd, mapping.end),
+    )
 
     for (const mapping of affectedMappings) {
-      const { node, start: nodeStartInPlainText, end: nodeEndInPlainText } = mapping;
+      const {
+        node,
+        start: nodeStartInPlainText,
+        end: nodeEndInPlainText,
+      } = mapping
 
-      const intersectionStart = Math.max(matchStart, nodeStartInPlainText);
-      const intersectionEnd = Math.min(matchEnd, nodeEndInPlainText);
+      const intersectionStart = Math.max(matchStart, nodeStartInPlainText)
+      const intersectionEnd = Math.min(matchEnd, nodeEndInPlainText)
 
-      if (intersectionStart >= intersectionEnd) continue;
+      if (intersectionStart >= intersectionEnd) continue
 
-      const nodeHighlightStart = intersectionStart - nodeStartInPlainText;
-      const nodeHighlightEnd = intersectionEnd - nodeStartInPlainText;
+      const nodeHighlightStart = intersectionStart - nodeStartInPlainText
+      const nodeHighlightEnd = intersectionEnd - nodeStartInPlainText
 
-      if (nodeHighlightStart >= nodeHighlightEnd || !node.nodeValue || node.nodeValue.length < nodeHighlightEnd) continue;
+      if (
+        nodeHighlightStart >= nodeHighlightEnd ||
+        !node.nodeValue ||
+        node.nodeValue.length < nodeHighlightEnd
+      )
+        continue
 
-      const range = document.createRange();
-      range.setStart(node, nodeHighlightStart);
-      range.setEnd(node, nodeHighlightEnd);
-      
-      rects.push(...Array.from(range.getClientRects()));
+      const range = document.createRange()
+      range.setStart(node, nodeHighlightStart)
+      range.setEnd(node, nodeHighlightEnd)
+
+      rects.push(...Array.from(range.getClientRects()))
     }
 
-    return rects;
+    return rects
   }
 
-  private _getRectsForInput(pii: { startIndex: number; endIndex: number }): DOMRect[] {
+  private _getRectsForInput(pii: {
+    startIndex: number
+    endIndex: number
+  }): DOMRect[] {
     const input = this.target as HTMLInputElement | HTMLTextAreaElement
     const { scrollLeft, scrollTop } = input
     const { startIndex, endIndex } = pii
-    const value = this.currentValue;
+    const value = this.currentValue
 
     const twin = document.createElement('div')
     const styles = window.getComputedStyle(input)
@@ -454,7 +498,7 @@ export class TargetHighlighter {
       lineHeight: styles.lineHeight,
       boxSizing: styles.boxSizing,
       direction: styles.direction,
-      tabSize: styles.tabSize
+      tabSize: styles.tabSize,
     }
     Object.assign(twin.style, twinStyles)
 

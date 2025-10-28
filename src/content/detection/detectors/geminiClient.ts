@@ -2,7 +2,6 @@ import { sendMessage } from '../../../shared/messaging'
 import { error } from '../../../shared/logger'
 import type { GeminiApiResult, MsgResponse } from '../../../shared/types'
 
-
 export const requestGeminiPiiAnalysis = async (
   text: string,
 ): Promise<GeminiApiResult[]> => {

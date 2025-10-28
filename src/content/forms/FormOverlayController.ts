@@ -87,7 +87,7 @@ export class FormOverlayController {
       tag: element.tagName.toLowerCase(),
       type: element instanceof HTMLInputElement ? element.type : undefined,
       name: element.getAttribute('name') ?? undefined,
-      id: element.id || undefined
+      id: element.id || undefined,
     }))
     const snapshotKey = JSON.stringify(snapshot)
 
@@ -117,7 +117,15 @@ export class FormOverlayController {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['type', 'name', 'id', 'placeholder', 'data-mock', 'data-test', 'data-testid']
+      attributeFilter: [
+        'type',
+        'name',
+        'id',
+        'placeholder',
+        'data-mock',
+        'data-test',
+        'data-testid',
+      ],
     })
   }
 

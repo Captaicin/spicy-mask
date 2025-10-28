@@ -1,6 +1,5 @@
 import { GeminiApiResult } from '../shared/types'
-import {log, error} from '../shared/logger'
-
+import { log, error } from '../shared/logger'
 
 const PII_ANALYSIS_SCHEMA = {
   type: 'object',
@@ -53,13 +52,8 @@ async function executeLLMPrompt(
   }
 }
 
-export async function runPiiAnalysis(
-  text: string,
-): Promise<GeminiApiResult[]> {
-
-  const preprocessedText = text
-    .trim()
-    .replace(/(\r\n|\n){3,}/g, '\n\n')
+export async function runPiiAnalysis(text: string): Promise<GeminiApiResult[]> {
+  const preprocessedText = text.trim().replace(/(\r\n|\n){3,}/g, '\n\n')
 
   const prompt = `Role: You are a privacy expert. Your task is to identify PII that is **difficult to detect with simple patterns such as regex**.
 

@@ -9,5 +9,5 @@ const root = createRoot(container)
 root.render(
   <React.StrictMode>
     <Popup />
-  </React.StrictMode>
+  </React.StrictMode>,
 )

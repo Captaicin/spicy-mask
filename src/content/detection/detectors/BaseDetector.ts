@@ -32,5 +32,7 @@ export abstract class BaseDetector {
     this.description = meta.description
   }
 
-  abstract detect(input: DetectionInput): DetectionMatch[] | Promise<DetectionMatch[]>
+  abstract detect(
+    input: DetectionInput,
+  ): DetectionMatch[] | Promise<DetectionMatch[]>
 }

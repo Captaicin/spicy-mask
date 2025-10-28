@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { AllFormFilter, MockFormFilter, TextFormFilter } from '../content/forms/filters'
+import {
+  AllFormFilter,
+  MockFormFilter,
+  TextFormFilter,
+} from '../content/forms/filters'
 import { storage, STORAGE_KEYS } from '../shared/storage'
 import * as tokens from '../styles/designTokens'
 
-const filters = [new AllFormFilter(), new TextFormFilter(), new MockFormFilter()]
+const filters = [
+  new AllFormFilter(),
+  new TextFormFilter(),
+  new MockFormFilter(),
+]
 
 const Options: React.FC = () => {
   const [defaultHighlight, setDefaultHighlight] = useState(false)
@@ -75,13 +83,22 @@ const Options: React.FC = () => {
       </style>
       <h1>Spicy Mask Options</h1>
       <p className="subtitle">
-        Spicy Mask mirrors form controls that match the developer-supplied filter. Update{' '}
-        <code>src/content/filterConfig.ts</code> to swap in a different strategy when collaborating.
+        Spicy Mask mirrors form controls that match the developer-supplied
+        filter. Update <code>src/content/filterConfig.ts</code> to swap in a
+        different strategy when collaborating.
       </p>
 
       <section className="card">
         <h2>General Settings</h2>
-        <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', cursor: 'pointer' }}>
+        <label
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 0',
+            cursor: 'pointer',
+          }}
+        >
           <span>Enable highlighting by default</span>
           <div className="switch">
             <input
@@ -109,16 +126,18 @@ const Options: React.FC = () => {
       <section className="info">
         <h2>How mirroring works</h2>
         <p>
-          Each matching form control is mirrored inside a zero-sized shadow DOM host. This keeps the page layout
-          untouched while still allowing developers to inspect the mirrored inputs in DevTools.
+          Each matching form control is mirrored inside a zero-sized shadow DOM
+          host. This keeps the page layout untouched while still allowing
+          developers to inspect the mirrored inputs in DevTools.
         </p>
       </section>
 
       <section className="info">
         <h2>Permissions reminder</h2>
         <p>
-          Host permissions remain broad for development convenience. Narrow them down before shipping to production
-          in order to follow the principle of least privilege.
+          Host permissions remain broad for development convenience. Narrow them
+          down before shipping to production in order to follow the principle of
+          least privilege.
         </p>
       </section>
     </main>

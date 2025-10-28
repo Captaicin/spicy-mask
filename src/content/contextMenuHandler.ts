@@ -14,7 +14,12 @@ const handleMaskSelection = () => {
   ) {
     const el = activeElement
     const { selectionStart, selectionEnd, value } = el
-    if (selectionStart === null || selectionEnd === null || selectionStart === selectionEnd) return
+    if (
+      selectionStart === null ||
+      selectionEnd === null ||
+      selectionStart === selectionEnd
+    )
+      return
 
     const match: DetectionMatch = {
       detectorId: 'user-selection',
@@ -28,7 +33,6 @@ const handleMaskSelection = () => {
 
     const { masked } = maskValueWithMatches(value, [match])
     el.value = masked
-
   } else if (activeElement.isContentEditable) {
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0) return
@@ -56,11 +60,11 @@ const handleMaskSelection = () => {
 }
 
 export const initContextMenuHandler = () => {
-  onMessage(message => {
+  onMessage((message) => {
     if (message.type === 'MASK_SELECTION') {
       handleMaskSelection()
     }
-    // This listener is only for the context menu. 
+    // This listener is only for the context menu.
     // We return a resolved promise to not interfere with other listeners.
     return Promise.resolve({ ok: true })
   })

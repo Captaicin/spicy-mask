@@ -3,7 +3,6 @@ import { BaseDetector, type DetectionInput } from './BaseDetector'
 import type { DetectionMatch, GeminiApiResult } from '../../../shared/types'
 import { requestGeminiPiiAnalysis } from './geminiClient'
 
-
 export class GeminiDetector extends BaseDetector {
   constructor() {
     super({
@@ -49,7 +48,9 @@ export class GeminiDetector extends BaseDetector {
       if (!searchTerm) continue
 
       let currentIndex = -1
-      while ((currentIndex = value.indexOf(searchTerm, currentIndex + 1)) !== -1) {
+      while (
+        (currentIndex = value.indexOf(searchTerm, currentIndex + 1)) !== -1
+      ) {
         allMatches.push({
           detectorId: this.id,
           source: 'gemini',

@@ -10,7 +10,7 @@ export const storage = {
     return new Promise((resolve) => {
       chrome.storage.sync.set({ [key]: value }, () => resolve())
     })
-  }
+  },
 }
 
 export const STORAGE_KEYS = {

@@ -11,7 +11,7 @@ const ALLOWED_INPUT_TYPES = new Set([
   'url',
   'tel',
   'password',
-  'number'
+  'number',
 ])
 
 export class TextFormFilter extends FormFilter {
@@ -22,7 +22,7 @@ export class TextFormFilter extends FormFilter {
       id: 'text',
       label: 'Textual inputs',
       description:
-        'Match typable content such as text inputs, textareas, contenteditable regions, and ARIA textboxes.'
+        'Match typable content such as text inputs, textareas, contenteditable regions, and ARIA textboxes.',
     })
 
     this.includeHidden = options.includeHidden ?? false
@@ -42,7 +42,11 @@ export class TextFormFilter extends FormFilter {
     }
 
     if (element instanceof HTMLInputElement) {
-      if (element.disabled || element.readOnly || this.isDisabledByAria(element)) {
+      if (
+        element.disabled ||
+        element.readOnly ||
+        this.isDisabledByAria(element)
+      ) {
         return false
       }
 
@@ -56,7 +60,11 @@ export class TextFormFilter extends FormFilter {
     }
 
     if (element instanceof HTMLTextAreaElement) {
-      if (element.disabled || element.readOnly || this.isDisabledByAria(element)) {
+      if (
+        element.disabled ||
+        element.readOnly ||
+        this.isDisabledByAria(element)
+      ) {
         return false
       }
       return true

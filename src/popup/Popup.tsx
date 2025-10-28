@@ -20,10 +20,13 @@ const Popup: React.FC = () => {
     <div className="panel">
       <h1>Spicy Mask</h1>
       <p className="subtitle">
-        Mirroring runs automatically using the configured form filter. Update `src/content/filterConfig.ts` to
-        inject a different filter strategy when collaborating with your team.
+        Mirroring runs automatically using the configured form filter. Update
+        `src/content/filterConfig.ts` to inject a different filter strategy when
+        collaborating with your team.
       </p>
-      <p className="hint">Status: {status === 'idle' ? 'Connected' : 'Check service worker logs'}</p>
+      <p className="hint">
+        Status: {status === 'idle' ? 'Connected' : 'Check service worker logs'}
+      </p>
     </div>
   )
 }

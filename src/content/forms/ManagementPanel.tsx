@@ -342,10 +342,9 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
     animation: 'gradient-move 10s ease infinite',
   }
 
-  const scanButtonStyle =
-    shouldAnimate
-      ? { ...animatedGradientButtonStyle, width: '80%' }
-      : { ...buttonStyles, width: '80%' }
+  const scanButtonStyle = shouldAnimate
+    ? { ...animatedGradientButtonStyle, width: '80%' }
+    : { ...buttonStyles, width: '80%' }
 
   const checkResultsButtonStyle: React.CSSProperties = {
     ...buttonStyles,
@@ -453,7 +452,9 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
                     ))}
                   </ul>
                 ) : (
-                  <p style={{ marginBottom: tokens.spacing.s4 }}>No PII found.</p>
+                  <p style={{ marginBottom: tokens.spacing.s4 }}>
+                    No PII found.
+                  </p>
                 )}
                 <button
                   style={checkResultsButtonStyle}
@@ -491,20 +492,42 @@ export const ManagementPanel: React.FC<ManagementPanelProps> = ({
           </div>
         </div>
 
-      <div style={{ ...headerStyles, borderBottom: 'none', paddingTop: tokens.spacing.s2, paddingBottom: tokens.spacing.s2 }}>
-        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}>
-          <span style={{ fontWeight: tokens.typography.fontWeightMedium, fontSize: tokens.typography.fontSizeXs }}>Show Highlights</span>
-          <div className="switch">
-            <input
-              type="checkbox"
-              checked={isHighlightingActive}
-              onChange={(e) => setIsHighlightingActive?.(e.target.checked)}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <span className="slider"></span>
-          </div>
-        </label>
-      </div>
+        <div
+          style={{
+            ...headerStyles,
+            borderBottom: 'none',
+            paddingTop: tokens.spacing.s2,
+            paddingBottom: tokens.spacing.s2,
+          }}
+        >
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              cursor: 'pointer',
+            }}
+          >
+            <span
+              style={{
+                fontWeight: tokens.typography.fontWeightMedium,
+                fontSize: tokens.typography.fontSizeXs,
+              }}
+            >
+              Show Highlights
+            </span>
+            <div className="switch">
+              <input
+                type="checkbox"
+                checked={isHighlightingActive}
+                onChange={(e) => setIsHighlightingActive?.(e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="slider"></span>
+            </div>
+          </label>
+        </div>
 
         {/* <div style={{ padding: `0 ${tokens.spacing.s2}` }}>
         {scanPending && !scanSummary ? (

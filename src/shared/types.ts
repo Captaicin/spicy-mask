@@ -4,24 +4,24 @@ declare global {
     prompt(
       prompt: string,
       options: { responseConstraint: object },
-    ): Promise<string>;
+    ): Promise<string>
   }
   const LanguageModel: {
-    create(): Promise<LanguageModel>;
-  };
+    create(): Promise<LanguageModel>
+  }
 }
 
-export type DetectorSource = 'regex' | 'gemini' | 'user';
+export type DetectorSource = 'regex' | 'gemini' | 'user'
 
 export type RegexEntityType =
   | 'email'
   | 'phone_number'
   | 'credit_card_number'
-  | 'social_security_number';
+  | 'social_security_number'
 
-export type GeminiEntityType = 'email' | 'phone_number' | 'contextual_pii';
+export type GeminiEntityType = 'email' | 'phone_number' | 'contextual_pii'
 
-export type UserEntityType = 'user_defined_pii';
+export type UserEntityType = 'user_defined_pii'
 
 interface BaseDetectionMatch {
   detectorId: string

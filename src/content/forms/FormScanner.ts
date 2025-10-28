@@ -6,8 +6,11 @@ const CONTENTEDITABLE_SELECTOR = '[contenteditable]'
 
 export class FormScanner {
   scan(root: Document | HTMLElement = document): FormElement[] {
-    const scope = root instanceof Document ? root : root.ownerDocument ?? document
-    const list = scope.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLElement>(SELECTOR)
+    const scope =
+      root instanceof Document ? root : (root.ownerDocument ?? document)
+    const list = scope.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLElement
+    >(SELECTOR)
     return Array.from(list).filter((element) => this.isEligible(element))
   }
 
@@ -22,7 +25,12 @@ export class FormScanner {
     if (element instanceof HTMLInputElement) {
       // Skip hidden elements and buttons.
       const type = element.type
-      return type !== 'hidden' && type !== 'button' && type !== 'submit' && type !== 'reset'
+      return (
+        type !== 'hidden' &&
+        type !== 'button' &&
+        type !== 'submit' &&
+        type !== 'reset'
+      )
     }
 
     if (element instanceof HTMLTextAreaElement) {
@@ -34,7 +42,10 @@ export class FormScanner {
       return !element.multiple
     }
 
-    if (element instanceof HTMLElement && element.matches(CONTENTEDITABLE_SELECTOR)) {
+    if (
+      element instanceof HTMLElement &&
+      element.matches(CONTENTEDITABLE_SELECTOR)
+    ) {
       if (!element.isContentEditable) {
         return false
       }
@@ -46,9 +57,11 @@ export class FormScanner {
       if (computed.display === 'none' || computed.visibility === 'hidden') {
         return false
       }
-      
+
       // Skip contenteditable regions that disable text input via user-modify or pointer events.
-      const userModify = computed?.getPropertyValue('-webkit-user-modify').trim()
+      const userModify = computed
+        ?.getPropertyValue('-webkit-user-modify')
+        .trim()
       if (userModify && userModify === 'read-only') {
         return false
       }
