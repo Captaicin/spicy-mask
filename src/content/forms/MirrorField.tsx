@@ -159,18 +159,6 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
   )
 
   const isMountedRef = useRef(true)
-  const valueRef = useRef(value)
-  useEffect(() => {
-    valueRef.current = value
-  }, [value])
-  const matchesRef = useRef(matches)
-  useEffect(() => {
-    matchesRef.current = matches
-  }, [matches])
-  const mappingsRef = useRef(mappings)
-  useEffect(() => {
-    mappingsRef.current = mappings
-  }, [mappings])
   const detectionSequenceRef = useRef(0)
 
   useEffect(() => {
@@ -236,7 +224,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
         throw err
       }
     },
-    [detectionContext, filterId, index, mappings, isHighlightingActive]
+    [detectionContext, filterId, index, mappings, isHighlightingActive, setIsHighlightingActive,]
   )
 
   const applyMask = useCallback(
@@ -365,13 +353,17 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
     }, [runDetection, plainText, value, target]),
     onContentScroll: useCallback(() => {
       highlighterRef.current?.update(
-        valueRef.current,
-        matchesRef.current,
-        mappingsRef.current,
+        value,
+        matches,
+        mappings,
         ignoredValues,
-        userRules
+        userRules,
+        {
+          isHighlightingActive,
+          setIsHighlightingActive,
+        },
       )
-    }, [ignoredValues, userRules]),
+    }, [value, matches, mappings, ignoredValues, userRules, isHighlightingActive, setIsHighlightingActive,]),
   }
 
   useEffect(() => {
@@ -455,7 +447,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
       target.removeEventListener('input', handleInput)
       target.removeEventListener('change', handleInput)
     }
-  }, [target, filterId, index])
+  }, [target,])
 
   useEffect(() => {
     if (!isContentEditableElement(target)) {
@@ -482,7 +474,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
     })
 
     return () => observer.disconnect()
-  }, [target, filterId, index])
+  }, [target,])
 
   useEffect(() => {
     if (!isSelectElement(target)) {
@@ -512,17 +504,17 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
     // This effect ensures that when the highlight toggle changes the state,
     // the highlighter component is re-rendered with the new visibility.
     highlighterRef.current?.update(
-      valueRef.current,
-      matchesRef.current,
-      mappingsRef.current,
+      value,
+      matches,
+      mappings,
       ignoredValues,
       userRules,
       {
         isHighlightingActive,
         setIsHighlightingActive,
-      }
+      },
     )
-  }, [isHighlightingActive, setIsHighlightingActive])
+  }, [value, matches, mappings, ignoredValues, userRules, isHighlightingActive, setIsHighlightingActive,])
 
   const label = useMemo(
     () => deriveLabel(target, `Field #${index + 1}`),
