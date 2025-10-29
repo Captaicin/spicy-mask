@@ -120,6 +120,7 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
   const [ignoredValues, setIgnoredValues] = useState<string[]>([])
   const [userRules, setUserRules] = useState<string[]>([])
   const [isHighlightingActive, setIsHighlightingActive] = useState(false)
+  const detectionTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     storage.get<boolean>(STORAGE_KEYS.DEFAULT_HIGHLIGHT_ON).then((value) => {
@@ -410,7 +411,19 @@ const MirrorField: React.FC<MirrorFieldProps> = ({
       return
     }
 
-    void runDetection(textToScan, { trigger: 'auto' })
+    if (detectionTimerRef.current) {
+      clearTimeout(detectionTimerRef.current)
+    }
+
+    detectionTimerRef.current = window.setTimeout(() => {
+      void runDetection(textToScan, { trigger: 'auto' })
+    }, 300)
+
+    return () => {
+      if (detectionTimerRef.current) {
+        clearTimeout(detectionTimerRef.current)
+      }
+    }
   }, [runDetection, value, plainText, target])
 
   useEffect(() => {

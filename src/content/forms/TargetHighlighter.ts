@@ -68,6 +68,7 @@ export class TargetHighlighter {
   private layoutRafId: number | null = null
   private updateRafId: number | null = null
   private destroyed = false
+  private cachedStyles: CSSStyleDeclaration | null = null
 
   // State passed to UI
   private currentValue = ''
@@ -115,6 +116,7 @@ export class TargetHighlighter {
     this.syncBaseStyles()
     this.updateLayout()
     this.attachObservers()
+    this.cacheTargetStyles()
   }
 
   update(
@@ -214,6 +216,7 @@ export class TargetHighlighter {
 
     window.removeEventListener('resize', this.requestLayoutUpdate, true)
     this.target.removeEventListener('scroll', this.handleAncestorScroll, true)
+    this.target.removeEventListener('scroll', this.requestLayoutUpdate, true)
     this.scrollableAncestors.forEach((el) => {
       el.removeEventListener('scroll', this.handleAncestorScroll, true)
       el.removeEventListener('scroll', this.requestLayoutUpdate, true)
@@ -233,8 +236,17 @@ export class TargetHighlighter {
     this.container.remove()
   }
 
+  private cacheTargetStyles(): void {
+    if (this.destroyed) return
+    this.cachedStyles = window.getComputedStyle(this.target)
+  }
+
+  private invalidateStylesCache(): void {
+    this.cacheTargetStyles()
+  }
+
   private syncBaseStyles(): void {
-    const computed = getComputedStyle(this.target)
+    const computed = this.cachedStyles ?? window.getComputedStyle(this.target)
     const targetZIndex = computed.zIndex
     let newZIndex: number
     if (targetZIndex === 'auto') {
@@ -311,6 +323,7 @@ export class TargetHighlighter {
     })
 
     if (isScrollableElement(this.target)) {
+      this.target.addEventListener('scroll', this.requestLayoutUpdate, true)
       this.target.addEventListener('scroll', this.handleAncestorScroll, true)
     }
   }
@@ -324,6 +337,7 @@ export class TargetHighlighter {
     }
     this.layoutRafId = requestAnimationFrame(() => {
       this.layoutRafId = null
+      this.invalidateStylesCache()
       this.syncBaseStyles()
       this.updateLayout()
       this.requestRender()
@@ -476,7 +490,13 @@ export class TargetHighlighter {
     const value = this.currentValue
 
     const twin = document.createElement('div')
-    const styles = window.getComputedStyle(input)
+
+    let styles = this.cachedStyles
+    if (!styles) {
+      this.cacheTargetStyles()
+      styles = this.cachedStyles!
+    }
+
     const inputRect = input.getBoundingClientRect()
 
     const twinStyles: Partial<CSSStyleDeclaration> = {
