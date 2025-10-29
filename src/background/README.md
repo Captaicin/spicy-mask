@@ -1,30 +1,37 @@
-# Background 서비스 워커
+# Background Service Worker
 
-## 역할
+## Role
 
-- Chrome 확장 프로그램의 서비스 워커로서 옵션/팝업/콘텐츠 스크립트가 보내는 런타임 메시지를 처리합니다.
-- 설치 시점에 컨텍스트 메뉴(`Mask selected text`)를 생성하고, 클릭 이벤트를 감지하여 콘텐츠 스크립트로 메시지를 전달합니다.
-- 설치 이벤트 훅을 잡아 초기화를 수행할 수 있는 확장 포인트를 제공합니다.
+- As the service worker for the Chrome extension, it processes runtime messages sent from options, popup, and content scripts.
+- Acts as a secure proxy to the on-device Gemini Nano API, ensuring that only the service worker can interact with the language model.
+- Creates a context menu (`Mask selected text`) upon installation. When this menu item is clicked, it detects the event and sends a `MASK_SELECTION` message to the active content script.
+- Provides an extension point to perform initialization by hooking into the installation event.
 
-## 구성 파일
+## Configuration Files
 
-| 경로               | 설명                                                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `index.ts`         | 서비스 워커 엔트리 포인트. 설치 이벤트 등록과 메시지 라우팅을 담당합니다.                                                          |
-| `geminiService.ts` | `RUN_GEMINI_PII_ANALYSIS` 메시지에 응답합니다. `LanguageModel` API의 프록시 역할을 하여 LLM을 호출하고 원본 PII 제안을 반환합니다. |
+| Path               | Description                                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`         | Service worker entry point. Responsible for registering installation events and message routing.                                                   |
+| `geminiService.ts` | Responds to the `RUN_GEMINI_PII_ANALYSIS` message. Acts as a proxy to the `LanguageModel` API to call the LLM and return original PII suggestions. |
 
-## 주요 API
+## Key APIs
 
-### 설치 훅
+### Installation Hook
 
 ```ts
-chrome.runtime.onInstalled.addListener(() => {})
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_ID,
+    title: 'Mask selected text',
+    contexts: ['selection'],
+  })
+})
 ```
 
-- 확장 프로그램 설치/업데이트 시 호출됩니다.
-- 현재는 no-op이며, 권한 요청이나 기본 설정 초기화 로직을 여기에 추가할 수 있습니다.
+- Called when the extension is installed or updated.
+- Creates the context menu (`Mask selected text`).
 
-### 메시지 엔드포인트
+### Message Endpoint
 
 ```ts
 onMessage(async (message) => {
@@ -32,12 +39,12 @@ onMessage(async (message) => {
 })
 ```
 
-- `src/shared/messaging.ts`의 `onMessage` 래퍼를 사용해 Promise 기반 라우팅을 제공합니다.
-- 기본 구현은 `PING` 타입에 `pong`을 응답하고, `RUN_GEMINI_PII_ANALYSIS`에 대해서는 비동기로 `geminiService.ts`를 호출해 결과를 반환하며, 미지정 타입에는 에러를 반환합니다.
-- 새 메시지를 지원하려면 `switch` 블록에 케이스를 추가하고 `Msg`/`MsgResponse` 타입을 업데이트하세요.
+- Uses the `onMessage` wrapper from `src/shared/messaging.ts` to provide Promise-based routing.
+- The default implementation responds with `pong` to the `PING` type, asynchronously calls `geminiService.ts` for `RUN_GEMINI_PII_ANALYSIS` and returns the result, and returns an error for unspecified types.
+- To support new messages, add a case to the `switch` block and update the `Msg`/`MsgResponse` types.
 
-## 확장 포인트
+## Extension Points
 
-- **추가 메시지 핸들러**: 상황별 비즈니스 로직을 케이스로 분기합니다.
-- **원격 감지 통합**: `geminiService.ts`는 실제 `LanguageModel` API 구현을 포함하고 있으며, 다른 종류의 프롬프트나 모델을 지원하도록 확장될 수 있습니다.
-- **백그라운드 작업 예약**: 크롬 알람, 스토리지 변경 리스너 등을 이 모듈에 넣을 수 있습니다.
+- **Additional Message Handlers**: Branch out contextual business logic using cases.
+- **Remote Detection Integration**: `geminiService.ts` contains the actual `LanguageModel` API implementation and can be extended to support different kinds of prompts or models.
+- **Background Task Scheduling**: Chrome alarms, storage change listeners, etc., can be placed in this module.

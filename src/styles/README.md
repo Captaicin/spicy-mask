@@ -1,26 +1,28 @@
 # Styles
 
-## 역할
+## Role
 
-- 옵션/팝업/오버레이 공용으로 사용하는 베이스 CSS 토큰과 구성요소 스타일을 정의합니다.
-- React 엔트리(`popup/main.tsx`, `options/main.tsx`)에서 직접 import 하여 번들에 포함됩니다.
+- Defines base CSS tokens and component styles used commonly across options, popups, and overlays.
+- It is directly imported in React entries (`popup/main.tsx`, `options/main.tsx`) to be included in the bundle.
 
-## 구성 파일
+## Configuration Files
 
-| 경로          | 설명                                                                                                                 |
-| ------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `globals.css` | 루트 컬러 스킴, 타이포그래피, 레이아웃 유틸리티, 기본 컴포넌트(`panel`, `page`, `card`, `info`) 스타일을 선언합니다. |
+| Path               | Description                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `globals.css`      | Declares the root color scheme, typography, layout utilities, and styles for basic components (`panel`, `page`, `card`, `info`). |
+| `designTokens.ts`  | Defines tokens used in the design system, such as colors, spacing, and typography.                                               |
+| `design-system.md` | A document explaining the principles of the design system, component usage, etc.                                                 |
 
-## 주요 클래스 개요
+## Key Class Overview
 
-- `panel`: 팝업 뷰 컨테이너. 수직 레이아웃과 여백을 설정합니다.
-- `subtitle`: 보조 설명 텍스트 컬러/크기를 조정합니다.
-- `page`: 옵션 페이지 기본 레이아웃. 최대 폭과 여백을 설정합니다.
-- `card`: 반투명 배경과 blur 효과를 갖는 카드 영역입니다.
-- `button`: 공용 CTA 버튼 스타일.
-- `info`: 좌측 보더가 강조된 인포 박스.
+- `panel`: The popup view container. Sets the vertical layout and margins.
+- `subtitle`: Adjusts the color/size of secondary descriptive text.
+- `page`: The basic layout for the options page. Sets the maximum width and margins.
+- `card`: A card area with a translucent background and blur effect.
+- `button`: Common CTA button style.
+- `info`: An info box with a highlighted left border.
 
-## 확장 팁
+## Extension Tips
 
-- 폼 미러링 UI가 가질 전역 테마 속성은 여기에서 정의하고, shadow DOM 내부에서는 인라인 스타일을 사용하거나 `adoptedStyleSheets`로 전달할 수 있습니다.
-- 다크/라이트 모드 전환이 필요하다면 `:root` 변수로 팔레트를 추출한 뒤 모드별로 override 하세요.
+- Global theme properties for the form mirroring UI can be defined here, and you can use inline styles or pass them via `adoptedStyleSheets` inside the shadow DOM.
+- If you need to switch between dark/light modes, extract the palette into `:root` variables and override them for each mode.

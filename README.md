@@ -1,26 +1,28 @@
 # Spicy Mask - AI Context-Aware Guardian
 
-Spicy Mask is an on-device AI security extension that intelligently prevents personal information leakage and phishing threats by understanding the user's web browsing 'context' and 'action' in real-time. This project specifically aims to leverage the Gemini Nano Chrome Built-in API to securely protect user privacy and defend against phishing attacks.
+Spicy Mask is an on-device AI security extension that intelligently prevents personal information leakage by understanding the user's input on web pages in real-time. This project leverages the built-in Gemini Nano on-device LLM, ensuring that no personally identifiable information (PII) ever leaves your machine, providing the highest level of privacy.
 
 ## Features
 
-- **Phishing Page Detection:** Analyzes the full text content of the currently visited web page to determine its phishing risk level.
-- **Personally Identifiable Information (PII) Input Detection & Masking Suggestion:** Real-time detection of PII in text entered by the user into `<input>`, `<textarea>`, or `contenteditable` fields.
+- **Multi-Layered PII Detection:**
+  - **Real-time Pattern-based Detection:** Automatically detects common PII patterns (e.g., credit card numbers, SSN, email addresses) in real-time as you type, using a regex engine.
+  - **On-Demand Contextual PII Detection:** Leverages the **on-device Gemini Nano model** to perform deeper, context-aware analysis of text to find more nuanced PII (e.g., passwords, API Keys, addresses) when requested by the user. As this is an on-device model, your data is processed locally and never sent to an external server, ensuring your privacy.
+  - **Real-time User-Defined Detection:** Allows users to add their own custom words to be detected in real-time.
 - **Manual Text Masking:** Allows users to manually mask any selected text by right-clicking and choosing the "Mask selected text" option.
-- **Context-Aware Decision Engine:** Combines the phishing detection results and PII input detection results to determine the final user warning/suggestion action.
-- **PII Management Panel:** Provides an in-context UI to view all detected PII, manage session-level ignored values, and add or remove custom PII detection rules.
+- **PII Management Panel:** Provides an in-context UI to view all detected PII, manage session-level ignored values, add or remove custom PII detection rules, and toggle the PII highlighting feature on or off.
 
 ## Usage
 
 Once the extension is installed, it will automatically start working in the background.
 
-- **Phishing Detection:** If you visit a suspicious or dangerous website, a warning banner will be displayed at the top of the page.
-- **PII Detection:** If you enter any personal information (e.g., credit card number, phone number) into an input field, a suggestion to mask the information will appear.
+- **Automatic PII Detection:** As you type in input fields, the extension automatically highlights potential PII detected by the real-time regex and user-defined rule detectors.
+- **On-Demand Deep Scan:** For a more thorough analysis, you can click the 🌶️ icon to initiate a deep scan with Gemini Nano, which can find contextual PII like addresses, passwords, and API keys.
+- **Masking:** Once PII is detected, you can click on the highlighted text to open a popover with options to mask the detected information.
 - **Manual Masking:** You can also select any text in an input field, right-click, and choose "Mask selected text" to mask it manually.
 
 ## Configuration
 
-You can enable or disable the phishing and PII detection features from the extension's options page.
+You can enable or disable the PII highlighting feature from the extension's options page.
 
 1.  Click on the Spicy Mask icon in the Chrome toolbar.
 2.  Select "Options".
@@ -30,7 +32,8 @@ You can enable or disable the phishing and PII detection features from the exten
 
 - **Platform:** Google Chrome Extension V3
 - **AI:** Gemini Nano (via the `LanguageModel` API)
-- **Languages:** JavaScript, HTML, CSS
+- **Languages:** TypeScript, HTML, CSS
+- **Frameworks/Libraries:** React, Vite
 
 ## Getting Started
 
@@ -107,6 +110,7 @@ The Vite dev server rebuilds on change. Refresh the extension page to pick up up
     - `README.md`: Shared layer documentation.
   - `styles/`
     - `globals.css`: Shared styling tokens for popup/options UI.
+    - `designTokens.ts`: Design system tokens (colors, spacing, etc.).
     - `README.md`: Style module notes.
 
 ## Form Mirroring Workflow
