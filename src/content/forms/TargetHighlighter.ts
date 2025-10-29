@@ -487,18 +487,21 @@ export class TargetHighlighter {
       left: `${inputRect.left}px`,
       width: `${inputRect.width}px`,
       height: `${inputRect.height}px`,
-      overflow: 'auto',
-      whiteSpace: styles.whiteSpace,
-      wordWrap: styles.wordWrap,
-      font: styles.font,
+      boxSizing: 'border-box',
       padding: styles.padding,
       border: styles.border,
-      letterSpacing: styles.letterSpacing,
-      textTransform: styles.textTransform,
+      font: styles.font,
       lineHeight: styles.lineHeight,
-      boxSizing: styles.boxSizing,
+      letterSpacing: styles.letterSpacing,
+      wordSpacing: styles.wordSpacing,
+      textAlign: styles.textAlign,
+      textIndent: styles.textIndent,
+      textTransform: styles.textTransform,
+      whiteSpace: styles.whiteSpace,
+      overflowWrap: styles.overflowWrap,
       direction: styles.direction,
       tabSize: styles.tabSize,
+      overflow: styles.overflow,
     }
     Object.assign(twin.style, twinStyles)
 
@@ -514,6 +517,10 @@ export class TargetHighlighter {
     twin.appendChild(textNodeBefore)
     twin.appendChild(span)
     twin.appendChild(textNodeAfter)
+    
+    if (value.endsWith('\n')) {
+      twin.appendChild(document.createElement('br'))
+    }
 
     document.body.appendChild(twin)
     twin.scrollLeft = scrollLeft
