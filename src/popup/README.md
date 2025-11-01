@@ -3,7 +3,8 @@
 ## Role
 
 - Responsible for the extension's popup view that opens from the browser toolbar.
-- Checks the basic connection status (PING) with the background service worker.
+- Checks the basic connection status with the background service worker.
+- Provides a link to the project's GitHub repository.
 
 ## Configuration Files
 
@@ -16,10 +17,16 @@
 ## Runtime Behavior
 
 1. When the component mounts, it calls `sendMessage({ type: 'PING' })` to check communication with the service worker.
-2. If the request fails, the status is switched to `error`, and the user is advised to check the logs.
-3. The basic UI reuses global style classes (`panel`, `subtitle`, `hint`).
+2. If the request is successful, it displays a "Connected" status.
+3. If the request fails, the status is switched to an error state, and the user is advised to check the service worker logs.
+4. A link to the GitHub repository is displayed to encourage contributions.
 
 ## Extension Points
 
-- To add more states, extend the `status` state into an enum and add message payload/response types to `shared/types.ts`.
-- To control settings from the popup, you can use `shared/storage` to integrate with Chrome storage.
+- To add more states or actions, you can extend the `status` state, add more message types in `shared/messaging.ts`, and handle them in the background script.
+- To control settings from the popup, you can use the `shared/storage` utility.
+
+## Styling
+
+- The UI is styled using classes from `src/styles/globals.css` and inline styles using design tokens from `src/styles/designTokens.ts`.
+- It features a dark theme consistent with the rest of the extension.

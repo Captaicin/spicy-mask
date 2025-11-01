@@ -3,27 +3,27 @@
 ## Role
 
 - This is the React bundle entry for the extension's options page.
-- It renders a static informational page that explains the available `FormFilter` implementations and their behavior to developers.
+- It allows users to configure general settings for the extension.
 
 ## Configuration Files
 
-| Path          | Description                                                                                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.html`  | The HTML shell for the options page. Defines the `#root` container and the `main.tsx` bundle entry point.                                                  |
-| `main.tsx`    | React 18 `createRoot` bootstrap code. Imports global styles (`../styles/globals.css`).                                                                     |
-| `Options.tsx` | The actual options UI component. Provides a list of filters, informational sections, and **user settings like whether to enable highlighting by default.** |
+| Path          | Description                                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `index.html`  | The HTML shell for the options page. Defines the `#root` container and the `main.tsx` bundle entry point.    |
+| `main.tsx`    | React 18 `createRoot` bootstrap code. Imports global styles (`../styles/globals.css`).                       |
+| `Options.tsx` | The main options UI component. Provides user settings like whether to enable highlighting by default.      |
 
-## Render Tree
+## Features
 
-- `<main class="page">`: The main layout container.
-- "Available filters" card: Iterates over `AllFormFilter`, `TextFormFilter`, and `MockFormFilter` instances and displays their metadata (label, description).
-- "How mirroring works" / "Permissions reminder" sections: Provide text-based guides.
+- **General Settings**: Contains settings that apply to the entire extension.
+- **Default Highlighting**: A toggle switch to control whether PII highlighting is enabled by default when a page loads.
+- **Contribution Link**: A link to the project's GitHub repository to encourage contributions.
 
 ## Extension Points
 
-- Adding a new `FormFilter` instance to the `filters` array will automatically display it on the options page.
-- If you need to save user settings, import the `shared/storage` utility and connect it to form elements.
+- To add new settings, you can add new state and UI elements in `Options.tsx` and use the `shared/storage` utility to save the user's preferences.
 
 ## Styling
 
-- All visual styles are defined in `src/styles/globals.css`, reusing common classes like `page`, `card`, and `info`.
+- All visual styles are defined in `src/styles/globals.css` and use design tokens from `src/styles/designTokens.ts`.
+- The page uses a dark theme with `backgroundPrimary` and `textPrimary` colors from the design tokens.
