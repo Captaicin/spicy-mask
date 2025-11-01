@@ -6,6 +6,8 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
+  --background-primary: #1A202C;
+  --text-primary: #F7FAFC;
 }
 
 * {
@@ -15,8 +17,8 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--background-primary);
+  color: var(--text-primary);
 }
 
 .panel {
